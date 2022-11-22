@@ -1,60 +1,128 @@
 import alpaca_trade_api as tradeapi
 import threading
-import asyncio
 import time
-
+from multiprocessing import Process, Manager
+import signal
 
 
 class AlpacaDataStreamer:
 
-   def __init__(self, api_key, secret_key, data_feed = "iex"):
+   def __init__(self, api_key, secret_key, order_books_dict, data_feed = "iex"):
       self.BASE_URL = "https://api.alpaca.markets"
       self.ALPACA_API_KEY = api_key
       self.ALPACA_SECRET_KEY = secret_key
+      self.order_books_dict = order_books_dict
       self.data_feed = data_feed
       self._connect()
 
    def _connect(self):
-      self.quote_thread = threading.Thread(target=self.quote_receiver)
-      self.quote_thread.start()
+      self.secondary_thread = threading.Thread(target=self._create_and_run_connection)
+      self.secondary_thread.start()
       time.sleep(4) #wait for connection to be established
 
-
-   def quote_receiver(self):
+   def _create_and_run_connection(self):
       global conn
-      try:
-         conn = tradeapi.stream.Stream(
-            key_id=self.ALPACA_API_KEY,
-            secret_key=self.ALPACA_SECRET_KEY,
-            base_url=self.BASE_URL,
-            data_feed=self.data_feed
-         )
-      except Exception as e:
-         print("Error logging into alpaca: ", e)
-         exit()
+
+      conn = tradeapi.stream.Stream(
+         key_id=self.ALPACA_API_KEY,
+         secret_key=self.ALPACA_SECRET_KEY,
+         base_url=self.BASE_URL,
+         data_feed=self.data_feed
+      )
 
       conn.run()
 
    def subscribe(self, ticker):
-      conn.subscribe_quotes(self._on_quote, ticker)
+      conn.subscribe_quotes(self._on_quote, ticker) # adds ticker to subscribe instruments and sets handler for conn (in secondary thread)
 
    def unsubscribe(self, ticker):
       conn.unsubscribe_quotes(ticker)
 
+   # Stops the incoming data stream and collects the processing thread
    def stop(self):
       conn.stop()
-      self.quote_thread.join()
+      self.secondary_thread.join()
       print("Receiver thread joined")
 
-   async def _on_quote(self, quote):
-      print('quote', quote)
+   async def _on_quote(self, q):
+      new_book = OrderBook(HalfBook(q.bid_size, q.bid_price, "bid"), HalfBook(q.ask_size, q.ask_price, "ask"), q.timestamp)
 
-streamer = AlpacaDataStreamer("AKFA6O7FWKEQ30SFPB9H", "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs", "iex")
-print("Connetion established")
-streamer.subscribe("AAPL")
-time.sleep(5)
-streamer.unsubscribe("AAPL")
-streamer.subscribe("GOOG")
+      self.order_books_dict[q.symbol] = new_book
+      print("\n", q.symbol, self.order_books_dict[q.symbol])
 
-time.sleep(5)
-streamer.stop()
+
+class HalfBook:
+   def __init__(self, volume, price, side_str):
+      self._volume = volume
+      self._price = price
+      self._side_str = side_str.capitalize()
+   
+   @property
+   def volume(self):
+      return self._volume
+   
+   @property
+   def price(self):
+      return self._price
+
+   @property
+   def side_str(self):
+      return self._side_str
+
+   def __str__(self):
+      return f"{self._side_str} volume: {self._volume} \n {self._side_str} price: {self._price}"
+
+class OrderBook:
+   def __init__(self, bid, ask, timestamp):
+      self._bid = bid
+      self._ask = ask
+      self._timestamp = timestamp
+
+   @property
+   def bid(self):
+      return self._bid
+
+   @property
+   def ask(self):
+      return self._ask
+
+   @property
+   def timestamp(self):
+      return self._timestamp
+
+   def __str__(self):
+      return f"{str(self._bid)}\n {str(self._ask)} \n Timestamp: {self._timestamp}"
+   
+
+def main():
+   signal.signal(signal.SIGINT, handler)
+   manager = Manager()
+   shared_order_books_dict = manager.dict()
+
+   global streamer
+   streamer = AlpacaDataStreamer("AKFA6O7FWKEQ30SFPB9H", "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs", shared_order_books_dict, "iex")
+   print("Connetion established")
+   streamer.subscribe("AAPL")
+   time.sleep(5)
+   streamer.unsubscribe("AAPL")
+   streamer.subscribe("GOOG")
+
+   time.sleep(3)
+   streamer.stop()
+
+   time.sleep(2)
+   for symbol, book in shared_order_books_dict.items():
+      print(symbol)
+      print(book)
+      print()
+
+
+
+def handler(signum, _):
+   if signum == signal.SIGINT:
+      streamer.stop()
+      exit(1)
+ 
+
+if __name__ == "__main__":
+   main()
