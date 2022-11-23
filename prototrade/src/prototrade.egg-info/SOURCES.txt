@@ -3,6 +3,7 @@ src/main/__init__.py
 src/main/__main__.py
 src/models/__init__.py
 src/models/books.py
+src/models/positions_manager.py
 src/prototrade.egg-info/PKG-INFO
 src/prototrade.egg-info/SOURCES.txt
 src/prototrade.egg-info/dependency_links.txt
