@@ -12,7 +12,7 @@ def test_execution(positions_managers):
    streamer.subscribe("AAPL")
    streamer.subscribe("MSFT")
    streamer.subscribe("GOOG")
-   time.sleep(7)
+   time.sleep(6)
 
    for pm in positions_managers: # start readers
       positions_managers_process_pool.apply_async(pm.test_pull)
@@ -41,7 +41,7 @@ def create_shared_memory(num_readers):
 
    manager = Manager()
    shared_dict = manager.dict()
-   sempahore_access = Semaphore(num_readers)
+   sempahore_access = manager.Semaphore(num_readers)
 
    return shared_dict
 
