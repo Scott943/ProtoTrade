@@ -15,7 +15,13 @@ class PositionsManager:
          time.sleep(random.uniform(0.1,0.2))
          self.order_books_dict_semaphore.acquire()
          symbol = random.choice(self.test_symbols)
-         book = self.order_books_dict[symbol]
+
+         if symbol not in self.order_books_dict:
+            self.order_books_dict_semaphore.release()
+            print(f"strategy {self.strategy_num} tries to pull, but no quote for {symbol}")
+            continue
+         
+         quote = self.order_books_dict[symbol]
 
          self.order_books_dict_semaphore.release()
          

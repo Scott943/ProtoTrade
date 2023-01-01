@@ -5,7 +5,6 @@ import time
 
 BASE_URL = "https://api.alpaca.markets"
 
-
 class AlpacaDataStreamer:
 
     def __init__(self, api_key, secret_key, price_updater, data_feed="iex"):
@@ -40,19 +39,13 @@ class AlpacaDataStreamer:
     def stop(self):
         conn.stop()
         self.secondary_thread.join()
-        print("Receiver thread joined")
+        print("Alpaca connection stopped & receiver thread joined")
 
     async def _on_quote(self, q):
-        print("New quote")
+        print("Streamer receives quote")
         quote = Quote(q.bid_size, q.bid_price, q.ask_size,
                       q.ask_price, q.timestamp)
         self.price_updater.update_price(q.symbol, quote)
         # this should push the new_book to the price updater
 
-# on quote:
-    # add new order book to order book list
-    # if time.time() - time_last > 0.3s
-        # acquire locks
-        # write all order books to map
-        # release locks
-        # clear list
+

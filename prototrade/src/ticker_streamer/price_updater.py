@@ -16,3 +16,12 @@ class PriceUpdater:
             # release all
             self.order_books_dict_semaphore.release()
           
+    
+    
+    # on quote:
+    # add new order book to order book list
+    # if time.time() - time_last > 0.3s
+        # acquire locks
+        # write all order books to map
+        # release locks
+        # clear list

@@ -22,8 +22,8 @@ class HalfQuote:
 # Our order book is composed of two half books (one for the bid and another for the ask)
 class Quote:
    def __init__(self, bid_volume, bid_price, ask_volume, ask_price, timestamp):
-      self._bid = HalfBook(bid_volume, bid_price, "bid")
-      self._ask = HalfBook(ask_volume, ask_price, "ask")
+      self._bid = HalfQuote(bid_volume, bid_price, "bid")
+      self._ask = HalfQuote(ask_volume, ask_price, "ask")
       self._timestamp = timestamp
 
    @property

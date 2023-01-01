@@ -9,4 +9,5 @@ src/prototrade.egg-info/SOURCES.txt
 src/prototrade.egg-info/dependency_links.txt
 src/prototrade.egg-info/top_level.txt
 src/ticker_streamer/__init__.py
+src/ticker_streamer/price_updater.py
 src/ticker_streamer/ticker_streamer.py
