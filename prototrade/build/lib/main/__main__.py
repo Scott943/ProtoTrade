@@ -45,9 +45,6 @@ def main():
    streamer = AlpacaDataStreamer(
       "AKFA6O7FWKEQ30SFPB9H", 
       "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs", 
-      shared_order_books_dict,
-      sempahore_access,
-      num_user_strategies,
       "iex"
       )
 

@@ -1,4 +1,4 @@
-class HalfBook:
+class HalfQuote:
    def __init__(self, volume, price, side_str):
       self._volume = volume
       self._price = price
@@ -20,7 +20,7 @@ class HalfBook:
       return f"{self._side_str} volume: {self._volume} \n {self._side_str} price: {self._price}"
 
 # Our order book is composed of two half books (one for the bid and another for the ask)
-class OrderBook:
+class Quote:
    def __init__(self, bid_volume, bid_price, ask_volume, ask_price, timestamp):
       self._bid = HalfBook(bid_volume, bid_price, "bid")
       self._ask = HalfBook(ask_volume, ask_price, "ask")
