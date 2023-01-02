@@ -1,4 +1,4 @@
-from models.main_system import MainSystem
+from main.main_system import MainSystem
    
 def main():
    system = MainSystem(num_strategies = 3)

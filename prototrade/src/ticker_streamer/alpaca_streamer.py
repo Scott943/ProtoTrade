@@ -21,23 +21,21 @@ class AlpacaDataStreamer:
         time.sleep(4)  # wait for connection to be established
 
     def _create_and_run_connection(self):
-        global conn
-
-        conn = tradeapi.stream.Stream(key_id=self.alpaca_api_key, secret_key=self.alpaca_secret_key, base_url=BASE_URL, data_feed=self.data_feed
+        self.conn = tradeapi.stream.Stream(key_id=self.alpaca_api_key, secret_key=self.alpaca_secret_key, base_url=BASE_URL, data_feed=self.data_feed
                                       )
         print("Establishing Connection")
-        conn.run()
+        self.conn.run()
 
     def subscribe(self, ticker):
-        # adds ticker to subscribe instruments and sets handler for conn (in secondary thread)
-        conn.subscribe_quotes(self._on_quote, ticker)
+        # adds ticker to subscribe instruments and sets handler for self.conn (in secondary thread)
+        self.conn.subscribe_quotes(self._on_quote, ticker)
 
     def unsubscribe(self, ticker):
-        conn.unsubscribe_quotes(ticker)
+        self.conn.unsubscribe_quotes(ticker)
 
     # Stops the incoming data stream and collects the processing thread
     def stop(self):
-        conn.stop()
+        self.conn.stop()
         self.secondary_thread.join()
         print("Alpaca connection stopped & receiver thread joined")
 

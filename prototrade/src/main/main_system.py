@@ -1,7 +1,7 @@
 from multiprocessing import Process, Manager, Semaphore, Pool, current_process
-from ticker_streamer.ticker_streamer import AlpacaDataStreamer
+from ticker_streamer.alpaca_streamer import AlpacaDataStreamer
 from ticker_streamer.price_updater import PriceUpdater
-from models.positions_manager import PositionsManager
+from position_management.positions_manager import PositionsManager
 import signal
 import time
 
@@ -13,7 +13,7 @@ class MainSystem:
     def __init__(self, num_strategies):
         self.num_strategies = num_strategies
 
-        self.shared_order_books_dict = self.create_shared_memory(
+        self.shared_order_books_dict = self._create_shared_memory(
             self.num_strategies)
 
         self.price_updater = PriceUpdater(
@@ -26,25 +26,24 @@ class MainSystem:
             "iex"
         )
 
-        self.create_position_managers()
+        self._create_position_managers()
 
-    def create_position_managers(self):
+    def _create_position_managers(self):
         # Temporarily ignore SIGINT to prevent interrupts being handled in child processes
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         self.positions_managers_process_pool = Pool(self.num_strategies)
 
         # Set the handler for SIGINT. Now SIGINT is only handled in the main process
-        signal.signal(signal.SIGINT, self.exit_handler)
-
-        self.positions_managers = []  # one per strategy
+        signal.signal(signal.SIGINT, self._exit_handler)
 
         print("Creating readers")
 
+        self.positions_managers = []  # one per strategy
         for strategy_number in range(self.num_strategies):
             pm = PositionsManager(
                 self.shared_order_books_dict, self.sempahore_access, TEST_SYMBOLS, strategy_number, self.stop_event)
-            self.positions_managers.append(pm)
+            self.positions_managers.append(pm) # Add to list of position managers
             print(f"Created reader {strategy_number}")
 
     def stop_execution(self):
@@ -59,7 +58,7 @@ class MainSystem:
         print("Processes terminated")
         exit(1)
 
-    def create_shared_memory(self, num_readers):
+    def _create_shared_memory(self, num_readers):
         manager = Manager()
         shared_dict = manager.dict()
         self.sempahore_access = manager.Semaphore(num_readers)
@@ -67,7 +66,7 @@ class MainSystem:
 
         return shared_dict
 
-    def exit_handler(self, signum, _):
+    def _exit_handler(self, signum, _):
         if signum == signal.SIGINT:
             self.stop_execution()
     
