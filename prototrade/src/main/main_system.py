@@ -1,15 +1,15 @@
 from multiprocessing import Process, Manager, Semaphore, Pool, current_process
 from ticker_streamer.alpaca_streamer import AlpacaDataStreamer
 from ticker_streamer.price_updater import PriceUpdater
-from position_management.positions_manager import PositionsManager
+from position_management.test_puller import TestPuller
 import signal
 import time
 
 TEST_SYMBOLS = ["AAPL", "GOOG", "MSFT"]
 
-
 class MainSystem:
 
+    # this should be initialised with alpaca credentials and exchange. then register_strategy sued to calculate the num_strategiegs
     def __init__(self, num_strategies):
         self.num_strategies = num_strategies
 
@@ -32,18 +32,18 @@ class MainSystem:
         # Temporarily ignore SIGINT to prevent interrupts being handled in child processes
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-        self.positions_managers_process_pool = Pool(self.num_strategies)
+        self.tp_process_pool = Pool(self.num_strategies)
 
         # Set the handler for SIGINT. Now SIGINT is only handled in the main process
         signal.signal(signal.SIGINT, self._exit_handler)
 
         print("Creating readers")
 
-        self.positions_managers = []  # one per strategy
+        self.tp_list = []  # one per strategy
         for strategy_number in range(self.num_strategies):
-            pm = PositionsManager(
+            pm = TestPuller(
                 self.shared_order_books_dict, self.sempahore_access, TEST_SYMBOLS, strategy_number, self.stop_event)
-            self.positions_managers.append(pm) # Add to list of position managers
+            self.tp_list.append(pm) # Add to list of position managers
             print(f"Created reader {strategy_number}")
 
     def stop_execution(self):
@@ -52,8 +52,8 @@ class MainSystem:
         self.stop_event.set() #Inform child processes to stop
         self.streamer.stop()
 
-        self.positions_managers_process_pool.close() #Prevents any other task from being submitted
-        self.positions_managers_process_pool.join() #Wait for child processes to finish
+        self.tp_process_pool.close() #Prevents any other task from being submitted
+        self.tp_process_pool.join() #Wait for child processes to finish
         
         print("Processes terminated")
         exit(1)
@@ -75,8 +75,8 @@ class MainSystem:
             self.streamer.subscribe(symbol)
         time.sleep(6)
         
-        for pm in self.positions_managers:  # start readers
-            self.positions_managers_process_pool.apply_async(pm.test_pull)
+        for pm in self.tp_list:  # start readers
+            self.tp_process_pool.apply_async(pm.test_pull)
             print("Started test pull")
         print("Started readers")
 

@@ -3,7 +3,7 @@ import time
 import signal
 
 # Periodically accesses the shared dictionary
-class PositionsManager:
+class TestPuller:
 
    def __init__(self, order_books_dict, order_books_dict_semaphore, test_symbols, strategy_num, stop_event):
       self.order_books_dict = order_books_dict
