@@ -1,19 +1,20 @@
 import random
 import time
+import signal
 
 # Periodically accesses the shared dictionary
 class PositionsManager:
 
-   def __init__(self, order_books_dict, order_books_dict_semaphore, test_symbols, strategy_num):
+   def __init__(self, order_books_dict, order_books_dict_semaphore, test_symbols, strategy_num, stop_event):
       self.order_books_dict = order_books_dict
       self.order_books_dict_semaphore = order_books_dict_semaphore
       self.test_symbols = test_symbols
       self.strategy_num = strategy_num
-   
+      self.stop_event = stop_event
+     
    def test_pull(self):
       print("TESTS")
-      while True:
-         time.sleep(random.uniform(0.1,0.2))
+      while not self.stop_event.is_set():
          self.order_books_dict_semaphore.acquire()
          symbol = random.choice(self.test_symbols)
 
@@ -27,3 +28,7 @@ class PositionsManager:
          self.order_books_dict_semaphore.release()
          
          print(f"strategy {self.strategy_num} pulled: \n{symbol}\n")
+
+         time.sleep(random.uniform(0.1,0.2))
+      
+      print(f"Positions Manager {self.strategy_num} stopping")

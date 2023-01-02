@@ -25,7 +25,7 @@ class AlpacaDataStreamer:
 
         conn = tradeapi.stream.Stream(key_id=self.alpaca_api_key, secret_key=self.alpaca_secret_key, base_url=BASE_URL, data_feed=self.data_feed
                                       )
-        print("Connection established")
+        print("Establishing Connection")
         conn.run()
 
     def subscribe(self, ticker):
