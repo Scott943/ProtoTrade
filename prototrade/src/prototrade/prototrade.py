@@ -13,29 +13,32 @@ TEST_SYMBOLS = ["AAPL", "GOOG", "MSFT"]
 class ProtoTrade:
 
     # this should be initialised with alpaca credentials and exchange. then register_strategy sued to calculate the num_strategiegs
-    def __init__(self):
+    def __init__(self, streamer_name, streamer_username, streamer_key, exchange_name="iex"):
+        self._streamer_name = streamer_name
+        self._streamer_username = streamer_username
+        self._streamer_key = streamer_key
+        self._exchange_name = exchange_name
+
         self.num_strategies = 0  # This will be incremented when strategies are added
-        self.strategy_list = []
+        self._strategy_list = []
 
     def _create_processes_for_strategies(self):
         # Temporarily ignore SIGINT to prevent interrupts being handled in child processes
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         print(f"Number of strategies: {self.num_strategies}")
-        self.strategy_process_pool = Pool(self.num_strategies)
+        self._strategy_process_pool = Pool(self.num_strategies)
 
         # Set the handler for SIGINT. Now SIGINT is only handled in the main process
         signal.signal(signal.SIGINT, self._exit_handler)
 
         print("Creating strategies")
 
-        for strategy in self.strategy_list:  # start readers
-            
+        for strategy in self._strategy_list:  # start readers
             exchange = Exchange(
-                self.order_books_dict, self.order_books_dict_semaphore, None)
+                self._order_books_dict, self._order_books_dict_semaphore, None)
 
-            res = self.strategy_process_pool.apply_async(
+            self._strategy_process_pool.apply_async(
                 strategy.strategy_func, args=(exchange, *strategy.arguments))
-            res.get()
 
         print("Started strategies")
 
@@ -47,20 +50,21 @@ class ProtoTrade:
         #     return
         print(f"Stopping {current_process().pid}")
 
-        self.stop_event.set()  # Inform child processes to stop
-        self.streamer.stop()
+        self._stop_event.set()  # Inform child processes to stop
+        self._streamer.stop()
 
-        self.strategy_process_pool.close()  # Prevents any other task from being submitted
-        self.strategy_process_pool.join()  # Wait for child processes to finish
+        # Prevents any other task from being submitted
+        self._strategy_process_pool.close()
+        self._strategy_process_pool.join()  # Wait for child processes to finish
 
         print("Processes terminated")
-        exit(1) # All user work done so can exit
+        exit(1)  # All user work done so can exit
 
     def _create_shared_memory(self, num_readers):
         manager = Manager()
         shared_dict = manager.dict()
-        self.order_books_dict_semaphore = manager.Semaphore(num_readers)
-        self.stop_event = manager.Event()
+        self._order_books_dict_semaphore = manager.Semaphore(num_readers)
+        self._stop_event = manager.Event()
 
         return shared_dict
 
@@ -70,29 +74,29 @@ class ProtoTrade:
 
     def register_strategy(self, strategy_func, *args):
         self.num_strategies += 1
-        self.strategy_list.append(Strategy(strategy_func, args))
+        self._strategy_list.append(Strategy(strategy_func, args))
 
     def run_strategies(self):
-        self.order_books_dict = self._create_shared_memory(
+        self._order_books_dict = self._create_shared_memory(
             self.num_strategies)
 
         self.price_updater = PriceUpdater(
-            self.order_books_dict, self.order_books_dict_semaphore, self.num_strategies, self.stop_event)
+            self._order_books_dict, self._order_books_dict_semaphore, self.num_strategies, self._stop_event)
 
-        self.streamer = AlpacaDataStreamer(
-            "AKFA6O7FWKEQ30SFPB9H",
-            "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
+        self._streamer = AlpacaDataStreamer(
+            self._streamer_username,
+            self._streamer_key,
             self.price_updater,
-            "iex"
+            self._exchange_name
         )
 
         print("Subscribing to TEST SYMBOLS")
 
         for symbol in TEST_SYMBOLS:
-            self.streamer.subscribe(symbol)
+            self._streamer.subscribe(symbol)
         time.sleep(5)
 
         self._create_processes_for_strategies()
 
     def is_running(self):
-        return not self.stop_event.is_set()
+        return not self._stop_event.is_set()
