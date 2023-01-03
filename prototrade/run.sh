@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 setup.py install --user && python3 src/main
+pkill python3 && python3 setup.py install --user && python3 $1

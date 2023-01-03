@@ -40,7 +40,6 @@ class AlpacaDataStreamer:
         print("Alpaca connection stopped & receiver thread joined")
 
     async def _on_quote(self, q):
-        print("Streamer receives quote")
         quote = Quote(q.bid_size, q.bid_price, q.ask_size,
                       q.ask_price, q.timestamp)
         self.price_updater.update_price(q.symbol, quote)
