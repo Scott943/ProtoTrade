@@ -14,10 +14,18 @@ class ProtoTrade:
 
     # this should be initialised with alpaca credentials and exchange. then register_strategy sued to calculate the num_strategiegs
     def __init__(self, streamer_name, streamer_username, streamer_key, exchange_name="iex"):
+        signal.signal(signal.SIGINT, self._exit_handler)
         self._streamer_name = streamer_name
         self._streamer_username = streamer_username
         self._streamer_key = streamer_key
         self._exchange_name = exchange_name
+
+        self._pre_setup_terminate = False
+        self._setup_finished = False
+        
+        self._streamer = None
+        self._stop_event = None
+        self._strategy_process_pool = None
 
         self.num_strategies = 0  # This will be incremented when strategies are added
         self._strategy_list = []
@@ -46,18 +54,17 @@ class ProtoTrade:
         self.stop()
 
     def stop(self):
-        # if self.stop_event.set():
-        #     return
-        print(f"Stopping {current_process().pid}")
-
         self._stop_event.set()  # Inform child processes to stop
         self._streamer.stop()
 
         # Prevents any other task from being submitted
-        self._strategy_process_pool.close()
-        self._strategy_process_pool.join()  # Wait for child processes to finish
-
-        print("Processes terminated")
+        if self._strategy_process_pool: #Only close pool if it was opened
+            print("Joining processes")
+            self._strategy_process_pool.close()
+            self._strategy_process_pool.join()  # Wait for child processes to finish
+            print("Processes terminated")
+        
+        print("Processes not started yet")
         exit(1)  # All user work done so can exit
 
     def _create_shared_memory(self, num_readers):
@@ -70,7 +77,12 @@ class ProtoTrade:
 
     def _exit_handler(self, signum, _):
         if signum == signal.SIGINT:
-            self.stop()
+            print("\nStopping...")
+            if self._setup_finished:
+                self.stop()
+            else:
+                self._pre_setup_terminate = True
+    
 
     def register_strategy(self, strategy_func, *args):
         self.num_strategies += 1
@@ -83,12 +95,17 @@ class ProtoTrade:
         self.price_updater = PriceUpdater(
             self._order_books_dict, self._order_books_dict_semaphore, self.num_strategies, self._stop_event)
 
+        print("Creating streamer")
         self._streamer = AlpacaDataStreamer(
             self._streamer_username,
             self._streamer_key,
             self.price_updater,
             self._exchange_name
         )
+
+        self._setup_finished = True
+        if self._pre_setup_terminate:
+            self.stop() # If CTRL-C pressed while setting up, then trigger stop now
 
         print("Subscribing to TEST SYMBOLS")
 

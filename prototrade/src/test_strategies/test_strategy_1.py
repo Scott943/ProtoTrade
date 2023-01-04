@@ -9,7 +9,7 @@ def main():
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
                     "iex")
     pt.register_strategy(test_strategy, 5, 8)
-    pt.register_strategy(test_strategy, 6, 9)
+    # pt.register_strategy(test_strategy, 6, 9)
     pt.run_strategies()
 
 
@@ -21,8 +21,10 @@ def test_strategy(exchange, test_param_1, test_param_2):
     while pt.is_running():
         order_books = exchange.get_subscribed_books()
 
-        print("AAPL", order_books["AAPL"])
+        print(order_books)
         print("-----------")
+
+        exchange.unsubscribe("AAPL")
 
         time.sleep(0.5)
 

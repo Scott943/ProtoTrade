@@ -36,6 +36,7 @@ class AlpacaDataStreamer:
     # Stops the incoming data stream and collects the processing thread
     def stop(self):
         self._conn.stop()
+        print("Attempting to join thread")
         self._secondary_thread.join()
         print("Alpaca connection stopped & receiver thread joined")
 
