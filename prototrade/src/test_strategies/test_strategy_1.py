@@ -3,7 +3,6 @@ import time
 
 
 def main():
-    global pt
     pt = ProtoTrade("alpaca",
                     "AKFA6O7FWKEQ30SFPB9H",
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
@@ -16,8 +15,9 @@ def main():
 def test_strategy(exchange, test_param_1, test_param_2):
     print(f"p1:{test_param_1} p2:{test_param_2}")
 
+    print(exchange.is_running())
     exchange.subscribe("AAPL")
-    while pt.is_running():
+    while exchange.is_running():
         order_books = exchange.get_subscribed_books()
 
         print("----------- S0")
@@ -26,7 +26,8 @@ def test_strategy(exchange, test_param_1, test_param_2):
         
 
         time.sleep(0.5)
-
+    
+    print(exchange.is_running())
     print("Strategy Finished")
 
 
@@ -36,8 +37,8 @@ def test_strategy_2(exchange, test_param_1, test_param_2):
     exchange.subscribe("AAPL")
     time.sleep(3)
     exchange.subscribe("GOOG")
-    
-    while pt.is_running():
+    print(exchange.is_running())
+    while exchange.is_running():
         order_books = exchange.get_subscribed_books()
 
         print("----------- S1")
@@ -45,10 +46,11 @@ def test_strategy_2(exchange, test_param_1, test_param_2):
         print()
         
 
-        
 
         time.sleep(0.5)
 
+    
+    exchange.subscribe("MSFT") # This will correctly have no effect as queue is closed
     print("Strategy Finished")
 
 

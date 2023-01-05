@@ -32,6 +32,7 @@ class ProtoTrade:
         self.num_strategies = 0  # This will be incremented when strategies are added
         self._strategy_list = []
 
+
     def _create_processes_for_strategies(self):
         print(f"Number of strategies: {self.num_strategies}")
 
@@ -54,12 +55,10 @@ class ProtoTrade:
         for strategy_num, strategy in enumerate(self._strategy_list):
 
             exchange = Exchange(
-                self._order_books_dict, self._order_books_dict_semaphore, None, self._subscription_queue, strategy_num)
+                self._order_books_dict, self._order_books_dict_semaphore, None, self._subscription_queue, strategy_num, self._stop_event)
 
             res = self._strategy_process_pool.apply_async(
                 strategy.strategy_func, args=(exchange, *strategy.arguments))
-
-            # res.get()
 
         print("Started strategies")
 
@@ -79,8 +78,6 @@ class ProtoTrade:
             self._strategy_process_pool.close()
             self._strategy_process_pool.join()  # Wait for child processes to finish
             print("Processes terminated")
-
-        
 
         print("Processes not started yet")
         exit(1)  # All user work done so can exit
@@ -130,13 +127,5 @@ class ProtoTrade:
         if self._pre_setup_terminate:
             self.stop()  # If CTRL-C pressed while setting up, then trigger stop now
 
-        # print("Subscribing to TEST SYMBOLS")
-
-        # for symbol in TEST_SYMBOLS:
-        #     self._streamer.subscribe(symbol)
-        # time.sleep(5)
-
         self._create_processes_for_strategies()
 
-    def is_running(self):
-        return not self._stop_event.is_set()

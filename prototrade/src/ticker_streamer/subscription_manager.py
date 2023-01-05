@@ -13,7 +13,7 @@ class SubscriptionManager:
         self.symbol_to_strategies_dict = defaultdict(set)
         self._queue_polling_thread = None
 
-        self.create_thread_to_poll_queue()
+        self._create_thread_to_poll_queue()
 
     def subscribe(self, strategy_num, symbol):
         if symbol not in self.symbol_to_strategies_dict:
@@ -39,12 +39,12 @@ class SubscriptionManager:
     def print_books_subscribed_to(self):
         print(*[key for key in self.symbol_to_strategies_dict], sep=",")
 
-    def create_thread_to_poll_queue(self):
+    def _create_thread_to_poll_queue(self):
         self._queue_polling_thread = Thread(
-            target=self.process_subscription_events)
+            target=self._process_subscription_events)
         self._queue_polling_thread.start()
 
-    def process_subscription_events(self):
+    def _process_subscription_events(self):
         while True:
             event = self._subscription_queue.get()
 

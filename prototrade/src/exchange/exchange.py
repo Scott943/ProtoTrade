@@ -1,16 +1,19 @@
-import copy 
+import copy
 from models.subscription_event import SubscriptionEvent, SubscribeType
 import time
 from exceptions.exceptions import UnavailableSymbolException, SubscriptionException
 
+
 class Exchange:
 
-    def __init__(self, order_books_dict, order_books_dict_semaphore, position_manager, subscription_queue, exchange_num):
+    def __init__(self, order_books_dict, order_books_dict_semaphore, position_manager, subscription_queue, exchange_num, stop_event):
         self._order_books_dict = order_books_dict
         self._order_books_dict_semaphore = order_books_dict_semaphore
         self._position_manager = position_manager
         self._subscription_queue = subscription_queue
         self._exchange_num = exchange_num
+
+        self._stop_event = stop_event
 
         self._subscribed_symbols = set()
 
@@ -20,9 +23,9 @@ class Exchange:
 
         for symbol in self._subscribed_symbols:
 
-            # If the symbol has been subscribed to but has not arrived, 
+            # If the symbol has been subscribed to but has not arrived,
             if symbol not in self._order_books_dict:
-                self._busy_wait_for_symbol_to_arrive(symbol)
+                self._wait_for_symbol_to_arrive(symbol)
 
             quote_dict[symbol] = copy.deepcopy(self._order_books_dict[symbol])
 
@@ -30,7 +33,7 @@ class Exchange:
 
         return quote_dict
 
-    def _busy_wait_for_symbol_to_arrive(self, symbol):
+    def _wait_for_symbol_to_arrive(self, symbol):
         start_time = time.time()
         while symbol not in self._order_books_dict:
             self._order_books_dict_semaphore.release()
@@ -59,5 +62,6 @@ class Exchange:
         else:
             raise SubscriptionException(
                 f"Strategy {self._exchange_num} attempted to unsubscribe from a symbol that was not subscribed to")
-        
-        
+
+    def is_running(self):
+        return not self._stop_event.is_set()
