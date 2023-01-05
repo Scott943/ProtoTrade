@@ -1,9 +1,11 @@
-from multiprocessing import Process, Manager, Semaphore, Pool, current_process
+from multiprocessing import Process, Manager, Semaphore, current_process, Pool
+from multiprocessing.managers import BaseManager
 from ticker_streamer.alpaca_streamer import AlpacaDataStreamer
 from ticker_streamer.price_updater import PriceUpdater
 from position_management.test_puller import TestPuller
 from models.strategy import Strategy
 from exchange.exchange import Exchange
+from ticker_streamer.subscription_manager import SubscriptionManager
 import signal
 import time
 
@@ -22,7 +24,7 @@ class ProtoTrade:
 
         self._pre_setup_terminate = False
         self._setup_finished = False
-        
+
         self._streamer = None
         self._stop_event = None
         self._strategy_process_pool = None
@@ -31,22 +33,33 @@ class ProtoTrade:
         self._strategy_list = []
 
     def _create_processes_for_strategies(self):
+        print(f"Number of strategies: {self.num_strategies}")
+
         # Temporarily ignore SIGINT to prevent interrupts being handled in child processes
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        print(f"Number of strategies: {self.num_strategies}")
-        self._strategy_process_pool = Pool(self.num_strategies)
+
+        # SIGINT ignored to set child processes so wrap pool creation in a try except
+        try:
+            self._strategy_process_pool = Pool(
+                self.num_strategies)  # USE SPAWN HERE? Check bloat
+        except KeyboardInterrupt:
+            self.stop()
 
         # Set the handler for SIGINT. Now SIGINT is only handled in the main process
         signal.signal(signal.SIGINT, self._exit_handler)
 
-        print("Creating strategies")
+        print("Creating strategy processes")
 
-        for strategy in self._strategy_list:  # start readers
+        # start readers
+        for strategy_num, strategy in enumerate(self._strategy_list):
+
             exchange = Exchange(
-                self._order_books_dict, self._order_books_dict_semaphore, None)
+                self._order_books_dict, self._order_books_dict_semaphore, None, self._subscription_queue, strategy_num)
 
-            self._strategy_process_pool.apply_async(
+            res = self._strategy_process_pool.apply_async(
                 strategy.strategy_func, args=(exchange, *strategy.arguments))
+
+            # res.get()
 
         print("Started strategies")
 
@@ -57,21 +70,26 @@ class ProtoTrade:
         self._stop_event.set()  # Inform child processes to stop
         self._streamer.stop()
 
+        if self._subscription_manager:
+            self._subscription_manager.stop_queue_polling()
+
         # Prevents any other task from being submitted
-        if self._strategy_process_pool: #Only close pool if it was opened
+        if self._strategy_process_pool:  # Only close pool if it was opened
             print("Joining processes")
             self._strategy_process_pool.close()
             self._strategy_process_pool.join()  # Wait for child processes to finish
             print("Processes terminated")
+
         
+
         print("Processes not started yet")
         exit(1)  # All user work done so can exit
 
     def _create_shared_memory(self, num_readers):
-        manager = Manager()
-        shared_dict = manager.dict()
-        self._order_books_dict_semaphore = manager.Semaphore(num_readers)
-        self._stop_event = manager.Event()
+        self.manager = Manager()
+        shared_dict = self.manager.dict()
+        self._order_books_dict_semaphore = self.manager.Semaphore(num_readers)
+        self._stop_event = self.manager.Event()
 
         return shared_dict
 
@@ -82,7 +100,6 @@ class ProtoTrade:
                 self.stop()
             else:
                 self._pre_setup_terminate = True
-    
 
     def register_strategy(self, strategy_func, *args):
         self.num_strategies += 1
@@ -95,7 +112,6 @@ class ProtoTrade:
         self.price_updater = PriceUpdater(
             self._order_books_dict, self._order_books_dict_semaphore, self.num_strategies, self._stop_event)
 
-        print("Creating streamer")
         self._streamer = AlpacaDataStreamer(
             self._streamer_username,
             self._streamer_key,
@@ -103,15 +119,22 @@ class ProtoTrade:
             self._exchange_name
         )
 
+        self._subscription_queue = self.manager.Queue()
+
+        self._subscription_manager = SubscriptionManager(self._streamer,
+                                                         self._subscription_queue)
+
+        print("Creating streamer")
+
         self._setup_finished = True
         if self._pre_setup_terminate:
-            self.stop() # If CTRL-C pressed while setting up, then trigger stop now
+            self.stop()  # If CTRL-C pressed while setting up, then trigger stop now
 
-        print("Subscribing to TEST SYMBOLS")
+        # print("Subscribing to TEST SYMBOLS")
 
-        for symbol in TEST_SYMBOLS:
-            self._streamer.subscribe(symbol)
-        time.sleep(5)
+        # for symbol in TEST_SYMBOLS:
+        #     self._streamer.subscribe(symbol)
+        # time.sleep(5)
 
         self._create_processes_for_strategies()
 

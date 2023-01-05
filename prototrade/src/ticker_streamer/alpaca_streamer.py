@@ -26,17 +26,18 @@ class AlpacaDataStreamer:
         print("Establishing Connection")
         self._conn.run()
 
-    def subscribe(self, ticker):
+    def subscribe(self, symbol):
         # adds ticker to subscribe instruments and sets handler for self.conn (in secondary thread)
-        self._conn.subscribe_quotes(self._on_quote, ticker)
+        print(f"Alpaca subscribes to {symbol}")
+        self._conn.subscribe_quotes(self._on_quote, symbol)
 
-    def unsubscribe(self, ticker):
-        self._conn.unsubscribe_quotes(ticker)
+    def unsubscribe(self, symbol):
+        self._conn.unsubscribe_quotes(symbol)
 
     # Stops the incoming data stream and collects the processing thread
     def stop(self):
         self._conn.stop()
-        print("Attempting to join thread")
+        print("Attempting to join secondary thread")
         self._secondary_thread.join()
         print("Alpaca connection stopped & receiver thread joined")
 
