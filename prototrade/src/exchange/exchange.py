@@ -39,13 +39,14 @@ class Exchange:
         start_time = time.time()
         while symbol not in self._order_books_dict:
             self._order_books_dict_semaphore.release()
-            time.sleep(0.2)
+            time.sleep(0.3)
             print(f"{self.exchange_num} Waiting for {symbol} to come in")
             self._order_books_dict_semaphore.acquire()
 
             if time.time() - start_time > 4:
                 raise UnavailableSymbolException(
                     f"Strategy number {self.exchange_num} cannot find requested symbol '{symbol}' from exchange")
+                
 
     def get_subscriptions(self):
         return self._subscribed_symbols

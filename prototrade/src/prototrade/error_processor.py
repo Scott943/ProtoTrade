@@ -6,6 +6,8 @@ class ErrorProcessor:
         self._error_queue = error_queue
         self._create_thread_to_process_errors()
         self._SENTINEL = SENTINEL
+        self.is_error = False
+        self.exception = None
     
     def _create_thread_to_process_errors(self):
         self._error_processing_thread = Thread(
@@ -20,13 +22,18 @@ class ErrorProcessor:
             if event == self._SENTINEL:
                 break
 
-            raise event.exception #re-raise the exception in the main_program
+            self.is_error = True
+            self.exception = event.exception  # re-raise the exception in the main_program
+            break
 
-        print("Subscription queue reader finished")
+        print("Error queue reader finished")
 
     def stop_queue_polling(self):
             # self._subscription_queue.close()
         if self._error_processing_thread:
             # Inform consumer thread to stop
             self._error_queue.put(self._SENTINEL)
-            self._error_processing_thread.join()
+            self.join_thread()
+            
+    def join_thread(self):
+        self._error_processing_thread.join()

@@ -9,6 +9,8 @@ from ticker_streamer.subscription_manager import SubscriptionManager
 from prototrade.error_processor import ErrorProcessor
 from models.error_event import ErrorEvent
 
+import sys
+import traceback
 import signal
 import time
 
@@ -57,29 +59,31 @@ class ProtoTrade:
 
         # start readers
         for strategy_num, strategy in enumerate(self._strategy_list):
-
             exchange = Exchange(
                 self._order_books_dict, self._order_books_dict_semaphore, None, self._subscription_queue, self._error_queue, strategy_num, self._stop_event)
 
             res = self._strategy_process_pool.apply_async(
                 run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
 
-            res.get()
-
         print("Started strategies")
+        self._error_processor.join_thread()
+        print("Error processing thread joined")
 
-        time.sleep(8)
         self.stop()
 
     def stop(self):
+        print("Stopping Program")
         self._stop_event.set()  # Inform child processes to stop
         self._streamer.stop()
+        print("Streamer stopped")
 
         if self._subscription_manager:
             self._subscription_manager.stop_queue_polling()
+            print("Subscription manager stopped")
 
-        if self._error_processor:
+        if not self._error_processor.is_error:
             self._error_processor.stop_queue_polling()
+            print("Error processor stopped")
 
         # Prevents any other task from being submitted
         if self._strategy_process_pool:  # Only close pool if it was opened
@@ -88,7 +92,10 @@ class ProtoTrade:
             self._strategy_process_pool.join()  # Wait for child processes to finish
             print("Processes terminated")
 
-        print("Processes not started yet")
+        if self._error_processor.is_error:
+            print(self._error_processor.exception)
+
+        print("Exiting")
         exit(1)  # All user work done so can exit
 
     def _create_shared_memory(self, num_readers):
@@ -142,13 +149,21 @@ class ProtoTrade:
 
         self._create_processes_for_strategies()
 
+# This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
+
+
 def run_strategy(error_queue, func, exchange, *args):
-    try:
+    try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
         func(exchange, *args)
     except Exception as e:
-        handle_error(error_queue, e, exchange.exchange_num)
+        try:
+            handle_error(error_queue, e, exchange.exchange_num)
+        except Exception as e2:
+            print(f"During handling of a strategy error, another error occured: {e2}")
+        # At this point the process has finished and can be joined with the main process
 
 
 def handle_error(error_queue, e, exchange_num):
-    error_queue.put(ErrorEvent(exchange_num, e))
-    exit(1)
+    exception_info = traceback.format_exc()
+    error_queue.put(ErrorEvent(exchange_num, exception_info))
+    print(f"Process {exchange_num} EXCEPTION")
