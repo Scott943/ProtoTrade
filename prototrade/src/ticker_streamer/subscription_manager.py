@@ -2,13 +2,12 @@ from collections import defaultdict
 from models.subscription_event import SubscribeType
 from threading import Thread
 
-SENTINEL = None
-
 class SubscriptionManager:
 
-    def __init__(self, streamer, subscription_queue):
+    def __init__(self, streamer, subscription_queue, SENTINEL):
         self._streamer = streamer
         self._subscription_queue = subscription_queue
+        self._SENTINEL = SENTINEL
 
         self.symbol_to_strategies_dict = defaultdict(set)
         self._queue_polling_thread = None
@@ -48,7 +47,7 @@ class SubscriptionManager:
         while True:
             event = self._subscription_queue.get()
 
-            if event == SENTINEL:
+            if event == self._SENTINEL:
                 break
 
             if event.event_type == SubscribeType.SUBSCRIBE:
@@ -62,5 +61,5 @@ class SubscriptionManager:
         # self._subscription_queue.close()
         if self._queue_polling_thread:
             # Inform consumer thread to stop
-            self._subscription_queue.put(SENTINEL)
+            self._subscription_queue.put(self._SENTINEL)
             self._queue_polling_thread.join()

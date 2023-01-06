@@ -5,6 +5,7 @@ src/exchange/__init__.py
 src/exchange/exchange.py
 src/models/__init__.py
 src/models/books.py
+src/models/error_event.py
 src/models/strategy.py
 src/models/subscription_event.py
 src/position_management/__init__.py
@@ -12,6 +13,7 @@ src/position_management/position_manager.py
 src/position_management/test_puller.py
 src/prototrade/__init__.py
 src/prototrade/__main__.py
+src/prototrade/error_processor.py
 src/prototrade/prototrade.py
 src/prototrade.egg-info/PKG-INFO
 src/prototrade.egg-info/SOURCES.txt

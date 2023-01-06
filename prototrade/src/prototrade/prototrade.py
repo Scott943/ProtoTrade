@@ -6,10 +6,15 @@ from position_management.test_puller import TestPuller
 from models.strategy import Strategy
 from exchange.exchange import Exchange
 from ticker_streamer.subscription_manager import SubscriptionManager
+from prototrade.error_processor import ErrorProcessor
+from models.error_event import ErrorEvent
+
 import signal
 import time
 
 TEST_SYMBOLS = ["AAPL", "GOOG", "MSFT"]
+
+SENTINEL = None
 
 
 class ProtoTrade:
@@ -31,7 +36,6 @@ class ProtoTrade:
 
         self.num_strategies = 0  # This will be incremented when strategies are added
         self._strategy_list = []
-
 
     def _create_processes_for_strategies(self):
         print(f"Number of strategies: {self.num_strategies}")
@@ -55,10 +59,12 @@ class ProtoTrade:
         for strategy_num, strategy in enumerate(self._strategy_list):
 
             exchange = Exchange(
-                self._order_books_dict, self._order_books_dict_semaphore, None, self._subscription_queue, strategy_num, self._stop_event)
+                self._order_books_dict, self._order_books_dict_semaphore, None, self._subscription_queue, self._error_queue, strategy_num, self._stop_event)
 
             res = self._strategy_process_pool.apply_async(
-                strategy.strategy_func, args=(exchange, *strategy.arguments))
+                run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
+
+            res.get()
 
         print("Started strategies")
 
@@ -71,6 +77,9 @@ class ProtoTrade:
 
         if self._subscription_manager:
             self._subscription_manager.stop_queue_polling()
+
+        if self._error_processor:
+            self._error_processor.stop_queue_polling()
 
         # Prevents any other task from being submitted
         if self._strategy_process_pool:  # Only close pool if it was opened
@@ -119,7 +128,11 @@ class ProtoTrade:
         self._subscription_queue = self.manager.Queue()
 
         self._subscription_manager = SubscriptionManager(self._streamer,
-                                                         self._subscription_queue)
+                                                         self._subscription_queue, SENTINEL)
+
+        self._error_queue = self.manager.Queue()
+
+        self._error_processor = ErrorProcessor(self._error_queue, SENTINEL)
 
         print("Creating streamer")
 
@@ -129,3 +142,13 @@ class ProtoTrade:
 
         self._create_processes_for_strategies()
 
+def run_strategy(error_queue, func, exchange, *args):
+    try:
+        func(exchange, *args)
+    except Exception as e:
+        handle_error(error_queue, e, exchange.exchange_num)
+
+
+def handle_error(error_queue, e, exchange_num):
+    error_queue.put(ErrorEvent(exchange_num, e))
+    exit(1)
