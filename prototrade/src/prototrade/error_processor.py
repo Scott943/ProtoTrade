@@ -29,7 +29,7 @@ class ErrorProcessor:
         print("Error queue reader finished")
 
     def stop_queue_polling(self):
-            # self._subscription_queue.close()
+        # self._subscription_queue.close()
         if self._error_processing_thread:
             # Inform consumer thread to stop
             self._error_queue.put(self._SENTINEL)

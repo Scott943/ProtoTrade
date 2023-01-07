@@ -151,19 +151,17 @@ class ProtoTrade:
 
 # This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
 
-
 def run_strategy(error_queue, func, exchange, *args):
     try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
         func(exchange, *args)
     except Exception as e:
         try:
-            handle_error(error_queue, e, exchange.exchange_num)
+            handle_error(error_queue, exchange.exchange_num)
         except Exception as e2:
             print(f"During handling of a strategy error, another error occured: {e2}")
         # At this point the process has finished and can be joined with the main process
 
-
-def handle_error(error_queue, e, exchange_num):
-    exception_info = traceback.format_exc()
+def handle_error(error_queue, exchange_num):
+    exception_info = traceback.format_exc() # Get a string with full original stack trace
     error_queue.put(ErrorEvent(exchange_num, exception_info))
     print(f"Process {exchange_num} EXCEPTION")
