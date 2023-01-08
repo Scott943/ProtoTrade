@@ -61,7 +61,7 @@ class ProtoTrade:
         # start readers
         for strategy_num, strategy in enumerate(self._strategy_list):
             exchange = Exchange(
-                self._order_books_dict, self._order_books_dict_semaphore, None, self._subscription_queue, self._error_queue, strategy_num, self._stop_event)
+                self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event)
 
             res = self._strategy_process_pool.apply_async(
                 run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
@@ -75,6 +75,15 @@ class ProtoTrade:
     def stop(self):
         logging.info("Stopping Program")
         self._stop_event.set()  # Inform child processes to stop
+
+        # Prevents any other task from being submitted
+        if self._strategy_process_pool:  # Only close pool if it was opened
+            logging.info("Joining processes")
+            self._strategy_process_pool.close()
+            self._strategy_process_pool.join()  # Wait for child processes to finish
+            logging.info("Processes terminated")
+
+        # Clean up processes before the streamergit 
         self._streamer.stop()
         logging.info("Streamer stopped")
 
@@ -85,14 +94,7 @@ class ProtoTrade:
         if not self._error_processor.is_error:
             self._error_processor.stop_queue_polling()
             logging.info("Error processor stopped")
-
-        # Prevents any other task from being submitted
-        if self._strategy_process_pool:  # Only close pool if it was opened
-            logging.info("Joining processes")
-            self._strategy_process_pool.close()
-            self._strategy_process_pool.join()  # Wait for child processes to finish
-            logging.info("Processes terminated")
-
+            
         if self._error_processor.is_error:
             logging.info(self._error_processor.exception)
 
@@ -159,10 +161,10 @@ def run_strategy(error_queue, func, exchange, *args):
         try:
             handle_error(error_queue, exchange.exchange_num)
         except Exception as e2:
-            logging.info(f"During handling of a strategy error, another error occured: {e2}")
+            logging.critical(f"During handling of a strategy error, another error occured: {e2}")
         # At this point the process has finished and can be joined with the main process
 
 def handle_error(error_queue, exchange_num):
     exception_info = traceback.format_exc() # Get a string with full original stack trace
     error_queue.put(ErrorEvent(exchange_num, exception_info))
-    logging.info(f"Process {exchange_num} EXCEPTION")
+    logging.error(f"Process {exchange_num} EXCEPTION")

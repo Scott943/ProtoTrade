@@ -3,20 +3,20 @@ from models.subscription_event import SubscriptionEvent, SubscribeType
 import time
 from exceptions.exceptions import UnavailableSymbolException, SubscriptionException
 import logging
+from position_management.position_manager import PositionManager
 
 SYMBOL_REQUEST_TIMEOUT = 4
 class Exchange:
 
-    def __init__(self, order_books_dict, order_books_dict_semaphore, position_manager, subscription_queue, error_queue, exchange_num, stop_event):
+    def __init__(self, order_books_dict, order_books_dict_semaphore, subscription_queue, error_queue, exchange_num, stop_event):
         self._order_books_dict = order_books_dict
         self._order_books_dict_semaphore = order_books_dict_semaphore
-        self._position_manager = position_manager
         self._subscription_queue = subscription_queue
         self._error_queue = error_queue
         self.exchange_num = exchange_num
-
         self._stop_event = stop_event
 
+        self._position_manager = PositionManager()
         self._subscribed_symbols = set()
 
     def get_subscribed_books(self):
@@ -68,3 +68,6 @@ class Exchange:
 
     def is_running(self):
         return not self._stop_event.is_set()
+
+    def create_order(self, *args):
+        self._position_manager.create_order(args)
