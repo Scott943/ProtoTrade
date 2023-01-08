@@ -83,20 +83,21 @@ class ProtoTrade:
             self._strategy_process_pool.join()  # Wait for child processes to finish
             logging.info("Processes terminated")
 
-        # Clean up processes before the streamergit 
-        self._streamer.stop()
-        logging.info("Streamer stopped")
-
         if self._subscription_manager:
             self._subscription_manager.stop_queue_polling()
             logging.info("Subscription manager stopped")
+        
+        # Clean up processes before the streamer as processes rely on streamer 
+        self._streamer.stop()
+        logging.info("Streamer stopped")
 
-        if not self._error_processor.is_error:
-            self._error_processor.stop_queue_polling()
-            logging.info("Error processor stopped")
             
         if self._error_processor.is_error:
             logging.info(self._error_processor.exception)
+        else:
+            self._error_processor.stop_queue_polling()
+        logging.info("Error processor stopped")
+
 
         logging.info("Exiting")
         exit(1)  # All user work done so can exit
