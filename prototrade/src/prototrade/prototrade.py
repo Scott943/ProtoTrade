@@ -13,12 +13,13 @@ import sys
 import traceback
 import signal
 import time
+import logging
 
 TEST_SYMBOLS = ["AAPL", "GOOG", "MSFT"]
 
 SENTINEL = None
 
-
+logging.basicConfig(level=logging.INFO)
 class ProtoTrade:
 
     # this should be initialised with alpaca credentials and exchange. then register_strategy sued to calculate the num_strategiegs
@@ -40,7 +41,7 @@ class ProtoTrade:
         self._strategy_list = []
 
     def _create_processes_for_strategies(self):
-        print(f"Number of strategies: {self.num_strategies}")
+        logging.info(f"Number of strategies: {self.num_strategies}")
 
         # Temporarily ignore SIGINT to prevent interrupts being handled in child processes
         signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -55,7 +56,7 @@ class ProtoTrade:
         # Set the handler for SIGINT. Now SIGINT is only handled in the main process
         signal.signal(signal.SIGINT, self._exit_handler)
 
-        print("Creating strategy processes")
+        logging.info("Creating strategy processes")
 
         # start readers
         for strategy_num, strategy in enumerate(self._strategy_list):
@@ -65,37 +66,37 @@ class ProtoTrade:
             res = self._strategy_process_pool.apply_async(
                 run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
 
-        print("Started strategies")
+        logging.info("Started strategies")
         self._error_processor.join_thread()
-        print("Error processing thread joined")
+        logging.info("Error processing thread joined")
 
         self.stop()
 
     def stop(self):
-        print("Stopping Program")
+        logging.info("Stopping Program")
         self._stop_event.set()  # Inform child processes to stop
         self._streamer.stop()
-        print("Streamer stopped")
+        logging.info("Streamer stopped")
 
         if self._subscription_manager:
             self._subscription_manager.stop_queue_polling()
-            print("Subscription manager stopped")
+            logging.info("Subscription manager stopped")
 
         if not self._error_processor.is_error:
             self._error_processor.stop_queue_polling()
-            print("Error processor stopped")
+            logging.info("Error processor stopped")
 
         # Prevents any other task from being submitted
         if self._strategy_process_pool:  # Only close pool if it was opened
-            print("Joining processes")
+            logging.info("Joining processes")
             self._strategy_process_pool.close()
             self._strategy_process_pool.join()  # Wait for child processes to finish
-            print("Processes terminated")
+            logging.info("Processes terminated")
 
         if self._error_processor.is_error:
-            print(self._error_processor.exception)
+            logging.info(self._error_processor.exception)
 
-        print("Exiting")
+        logging.info("Exiting")
         exit(1)  # All user work done so can exit
 
     def _create_shared_memory(self, num_readers):
@@ -108,7 +109,7 @@ class ProtoTrade:
 
     def _exit_handler(self, signum, _):
         if signum == signal.SIGINT:
-            print("\nStopping...")
+            logging.info("\nStopping...")
             if self._setup_finished:
                 self.stop()
             else:
@@ -141,7 +142,7 @@ class ProtoTrade:
 
         self._error_processor = ErrorProcessor(self._error_queue, SENTINEL)
 
-        print("Creating streamer")
+        logging.info("Creating streamer")
 
         self._setup_finished = True
         if self._pre_setup_terminate:
@@ -158,10 +159,10 @@ def run_strategy(error_queue, func, exchange, *args):
         try:
             handle_error(error_queue, exchange.exchange_num)
         except Exception as e2:
-            print(f"During handling of a strategy error, another error occured: {e2}")
+            logging.info(f"During handling of a strategy error, another error occured: {e2}")
         # At this point the process has finished and can be joined with the main process
 
 def handle_error(error_queue, exchange_num):
     exception_info = traceback.format_exc() # Get a string with full original stack trace
     error_queue.put(ErrorEvent(exchange_num, exception_info))
-    print(f"Process {exchange_num} EXCEPTION")
+    logging.info(f"Process {exchange_num} EXCEPTION")

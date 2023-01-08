@@ -1,6 +1,7 @@
 from collections import defaultdict
 from models.subscription_event import SubscribeType
 from threading import Thread
+import logging
 
 class SubscriptionManager:
 
@@ -19,11 +20,11 @@ class SubscriptionManager:
             self._streamer.subscribe(symbol)
 
             self.symbol_to_strategies_dict[symbol].add(strategy_num)
-            print(
+            logging.info(
                 f"Strategy {strategy_num} subscribes to {symbol}")
         else:
             self.symbol_to_strategies_dict[symbol].add(strategy_num)
-            print(
+            logging.info(
                 f"Strategy {strategy_num} subscribes to {symbol}. Entry added")
 
     def unsubscribe(self, strategy_num, symbol):
@@ -32,11 +33,11 @@ class SubscriptionManager:
         if not self.symbol_to_strategies_dict[symbol]:
             self._streamer.unsubscribe(symbol)
             del self.symbol_to_strategies_dict[symbol]
-            print(
+            logging.info(
                 f"Strategy {strategy_num} unsubs from {symbol}. No strategies interested")
 
     def print_books_subscribed_to(self):
-        print(*[key for key in self.symbol_to_strategies_dict], sep=",")
+        logging.info(*[key for key in self.symbol_to_strategies_dict], sep=",")
 
     def _create_thread_to_poll_queue(self):
         self._queue_polling_thread = Thread(
@@ -55,7 +56,7 @@ class SubscriptionManager:
             else:
                 self.unsubscribe(event.strategy_num, event.symbol)
 
-        print("Subscription queue reader finished")
+        logging.info("Subscription queue reader finished")
 
     def stop_queue_polling(self):
         # self._subscription_queue.close()

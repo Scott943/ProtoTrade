@@ -14,7 +14,7 @@ class PriceUpdater:
             self.order_books_dict_semaphore.acquire()
 
         self.order_books_dict[symbol] = quote
-        # print("PriceUpdater writes", symbol)
+        # logging.info("PriceUpdater writes", symbol)
 
         for _ in range(self.num_strategies):
             # release all

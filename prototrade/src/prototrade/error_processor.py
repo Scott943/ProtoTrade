@@ -1,5 +1,6 @@
 from threading import Thread
 from models.error_event import ErrorEvent
+import logging
 
 class ErrorProcessor:
     def __init__(self, error_queue, SENTINEL):
@@ -26,7 +27,7 @@ class ErrorProcessor:
             self.exception = event.exception  # re-raise the exception in the main_program
             break
 
-        print("Error queue reader finished")
+        logging.info("Error queue reader finished")
 
     def stop_queue_polling(self):
         # self._subscription_queue.close()

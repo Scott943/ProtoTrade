@@ -2,6 +2,7 @@ import copy
 from models.subscription_event import SubscriptionEvent, SubscribeType
 import time
 from exceptions.exceptions import UnavailableSymbolException, SubscriptionException
+import logging
 
 SYMBOL_REQUEST_TIMEOUT = 4
 class Exchange:
@@ -39,7 +40,7 @@ class Exchange:
         while symbol not in self._order_books_dict:
             self._order_books_dict_semaphore.release()
             time.sleep(0.2)
-            print(f"{self.exchange_num} Waiting for {symbol} to come in")
+            logging.info(f"{self.exchange_num} Waiting for {symbol} to come in")
             self._order_books_dict_semaphore.acquire()
 
             if time.time() - start_time > SYMBOL_REQUEST_TIMEOUT:
