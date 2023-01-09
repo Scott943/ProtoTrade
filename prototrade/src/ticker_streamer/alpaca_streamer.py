@@ -48,5 +48,3 @@ class AlpacaDataStreamer:
                       q.ask_price, q.timestamp)
         self._price_updater.update_price(q.symbol, quote)
         # this should push the new_book to the price updater
-
-

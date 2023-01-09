@@ -90,14 +90,12 @@ class ProtoTrade:
         # Clean up processes before the streamer as processes rely on streamer 
         self._streamer.stop()
         logging.info("Streamer stopped")
-
             
         if self._error_processor.is_error:
             logging.info(self._error_processor.exception)
         else:
             self._error_processor.stop_queue_polling()
         logging.info("Error processor stopped")
-
 
         logging.info("Exiting")
         exit(1)  # All user work done so can exit

@@ -15,10 +15,8 @@ def main():
 def test_strategy(exchange, test_param_1, test_param_2):
     print(f"p1:{test_param_1} p2:{test_param_2}")
 
-    print(exchange.is_running())
     exchange.subscribe("AAPL")
     while exchange.is_running():
-        raise Exception("Tea expection")
         order_books = exchange.get_subscribed_books()
 
         print("----------- S0")
@@ -30,26 +28,20 @@ def test_strategy(exchange, test_param_1, test_param_2):
     
     print("Strategy 0 FINISHED")
 
-
 def test_strategy_2(exchange, test_param_1, test_param_2):
     print(f"p1:{test_param_1} p2:{test_param_2}")
     
     exchange.subscribe("AAfPL")
     time.sleep(0.5)
     exchange.subscribe("GOOG")
-    print(exchange.is_running())
     while exchange.is_running():
         order_books = exchange.get_subscribed_books()
 
         print("----------- S1")
         print(order_books)
         print()
-        
-
 
         time.sleep(0.5)
-        
-
     
     exchange.subscribe("MSFT") # This will correctly have no effect as queue is closed
     print("Strategy 1 FINISHED")
