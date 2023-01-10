@@ -19,17 +19,26 @@ def test_strategy(exchange, test_param_1, test_param_2):
     while exchange.is_running():
         order_books = exchange.get_subscribed_books()
 
-        print("----------- S0")
-        print(order_books)
-        print()
+        exchange.create_order("AAPL", "ask", "limit", random.randrange(2,20), random.randrange(50,100))
 
-        exchange.create_order("AAPL", "bid", "limit", random.randrange(2,20), random.randrange(50,100))
+        time.sleep(2)
+
+        exchange.create_order("AAPL", "ask", "market", random.randrange(2,20))
         
-        exchange.get_orders("AAPL")
-        print("BEST BID: ", exchange._position_manager._open_orders["AAPL"].bid_heap[0])
-        time.sleep(2.5)
-    
+        aapl_orders = exchange.get_orders("AAPL").items()
+        for x in aapl_orders:
+            print(x)
+        print("BEST BID: ", exchange._position_manager._open_orders["AAPL"].ask_heap[0])
+        time.sleep(2)
 
+        cancel_id = random.choice([k for k,_ in exchange.get_orders().items()])
+        
+
+        exchange.cancel_order(cancel_id)
+        print(f"CANCELLED {cancel_id}")
+        for x in exchange.get_orders("AAPL").items():
+            print(x)
+        time.sleep(5)
         
     print("Strategy 0 FINISHED")
 

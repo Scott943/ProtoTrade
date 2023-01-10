@@ -46,13 +46,11 @@ class Exchange:
             if time.time() - start_time > SYMBOL_REQUEST_TIMEOUT:
                 raise UnavailableSymbolException(
                     f"Symbol request timeout: strategy number {self.exchange_num + 1} cannot find requested symbol '{symbol}' from exchange")
-                
 
     def get_subscriptions(self):
         return self._subscribed_symbols
 
     def subscribe(self, symbol):
-
         self._subscription_queue.put(
             SubscriptionEvent(symbol, SubscribeType.SUBSCRIBE, self.exchange_num))
         self._subscribed_symbols.add(symbol)
@@ -83,3 +81,6 @@ class Exchange:
 
     def get_strategy_best_ask(self, *args):
         return self._position_manager.get_strategy_best_ask(*args)
+
+    def cancel_order(self, *args):
+        self._position_manager.cancel_order(*args)

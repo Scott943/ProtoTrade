@@ -4,7 +4,7 @@
 import logging
 import heapq
 from models.dual_heap import DualHeap
-from exceptions.exceptions import InvalidOrderTypeException, InvalidOrderSideException, UnknownOrderIdException
+from exceptions.exceptions import InvalidOrderTypeException, InvalidOrderSideException, UnknownOrderIdException, MissingParameterException, ExtraneousParameterException, UnavailableSymbolException
 from models.order import Order
 import math
 class PositionManager:
@@ -24,6 +24,12 @@ class PositionManager:
             self._open_orders[symbol] = DualHeap()
             logging.info(f"Creating heap for {symbol}")
 
+        if price and (type(price) != float and type(price) != int):
+            raise TypeError(f"The price parameter given, {price}, must be an integer or float.")
+        
+        if not type(volume) is int:
+            raise TypeError(f"The volume parameter given, {volume}, must be an integer.")
+
         dual_heap = self._open_orders[symbol]
 
         if order_side == "bid":
@@ -31,16 +37,21 @@ class PositionManager:
         elif order_side == "ask":
             heap_to_use = dual_heap.ask_heap
         else:
-            raise InvalidOrderSideException(f"'{order_side}' is an invalid order side. Accepted order sides: 'bid', 'ask'")
+            raise InvalidOrderSideException(f"'{order_side}' is an invalid order side. Valid order sides: 'bid', 'ask'")
 
         if order_type == "fok":
             return self._handle_fok(symbol, order_side, volume, price)
         elif order_type == "limit":
+            if not price:
+                raise MissingParameterException("Must include price as a parameter when inserting a limit order in create_order")
             return self._handle_limit_order(heap_to_use, symbol, order_side, order_type, volume, price)
         elif order_type == "market":
+            if price:
+                raise ExtraneousParameterException("Price cannot be used as parameter when a market order type is specified in create_order")
             return self._handle_market_order(heap_to_use, symbol, order_side, order_type, volume)
+
         else:
-            raise InvalidOrderTypeException(f"'{order_type}' is an invalid order type. Accepted order types: 'market', 'limit', 'fok'")
+            raise InvalidOrderTypeException(f"'{order_type}' is an invalid order type. Valid order types: 'market', 'limit', 'fok'")
 
         # Need to add the order to dual heap, then add a entry in the _order_dict to that new object
         # As the key for the entry, create a new order_id
@@ -69,6 +80,12 @@ class PositionManager:
     def cancel_order(self, order_id, volume_requested = None):
         # remove volume from order
         # if volume_requested > order_volume -> remove entire order
+        if type(order_id) != int:
+            raise TypeError(f"The order_id parameter given, {order_id}, must be an integer.")
+
+        if volume_requested and type(volume_requested) != int:
+            raise TypeError(f"The volume_requested parameter given, {volume_requested}, must be an integer.")
+
         if order_id not in self._order_dict:
             raise UnknownOrderIdException(f"Order ID {order_id} unknown")
         
@@ -81,8 +98,9 @@ class PositionManager:
             heap_to_use = dual_heap.ask_heap
 
         if not volume_requested or volume_requested >= order.volume:
-            self._remove_from_heap(self, heap_to_use, order) #Remove from heap
+            self._remove_from_heap(heap_to_use, order) #Remove from heap
             del self._order_dict[order_id] #Remove from order dict
+            print(f"{order_id} deleted")
         else:
             order.volume -= volume_requested
 
@@ -94,14 +112,14 @@ class PositionManager:
     def get_orders(self, symbol = None):
         # dictionary of order_id -> Order Object
         if symbol:
-            return self._get_heap(symbol)
-        return self._order_dict.items()
-
-        # handle if a symbol is specified
+            # Only return orders for requested symbol
+            return {k:v for k,v in self._order_dict.items() if v.symbol == symbol} 
+        return self._order_dict.copy()
         
     def _handle_fok(self, order_side, volume, price): 
         pass
 
+    # Next order ID to assign
     def _get_next_order_id(self):
         self._largest_order_id += 1
         return self._largest_order_id
@@ -110,9 +128,15 @@ class PositionManager:
         return str(self._open_orders[symbol])
 
     def get_strategy_best_bid(self, symbol):
+        if symbol not in self._open_orders:
+            raise UnavailableSymbolException(f"Strategy has not placed any bid orders for symbol {symbol}")
+
         return self._open_orders[symbol].bid_heap[0]
 
     def get_strategy_best_ask(self, symbol):
+        if symbol not in self._open_orders:
+            raise UnavailableSymbolException(f"Strategy has not placed any ask orders for symbol {symbol}")
+
         return self._open_orders[symbol].ask_heap[0]
 
 

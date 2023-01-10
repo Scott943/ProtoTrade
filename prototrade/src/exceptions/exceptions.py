@@ -14,3 +14,9 @@ class InvalidOrderSideException(Exception):
 
 class UnknownOrderIdException(Exception):
     pass
+
+class MissingParameterException(Exception):
+    pass
+
+class ExtraneousParameterException(Exception):
+    pass
