@@ -13,8 +13,10 @@ class Order:
          raise InvalidOrderSideException("Two objects in same heap have different order side types")
       
       if self.order_side == "bid":
+         print("test comp")
          return self.price > other.price # max bid at the top of heap
 
       return self.price < other.price # min ask at the top of heap
 
-   
+   def __repr__(self):
+      return f"Order: {self.symbol}, {self.order_side}, {self.order_type}, {self.volume} @ {self.price}"

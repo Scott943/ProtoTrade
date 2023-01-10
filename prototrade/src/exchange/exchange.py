@@ -70,4 +70,16 @@ class Exchange:
         return not self._stop_event.is_set()
 
     def create_order(self, *args):
-        self._position_manager.create_order(args)
+        self._position_manager.create_order(*args)
+
+    def get_orders(self, *args):
+        return self._position_manager.get_orders(*args)
+
+    def print_heap(self, *args):
+        self._position_manager.print_heap(*args)
+
+    def get_strategy_best_bid(self, *args):
+        return self._position_manager.get_strategy_best_bid(*args)
+
+    def get_strategy_best_ask(self, *args):
+        return self._position_manager.get_strategy_best_ask(*args)

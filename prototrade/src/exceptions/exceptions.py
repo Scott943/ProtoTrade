@@ -11,3 +11,6 @@ class InvalidOrderTypeException(Exception):
 
 class InvalidOrderSideException(Exception):
     pass
+
+class UnknownOrderIdException(Exception):
+    pass
