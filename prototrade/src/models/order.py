@@ -1,7 +1,8 @@
 from exceptions.exceptions import InvalidOrderSideException
 
 class Order:
-   def __init__(self, symbol, order_side, order_type, volume, price):
+   def __init__(self, order_id, symbol, order_side, order_type, volume, price):
+      self.order_id = order_id
       self.symbol = symbol
       self.order_side = order_side
       self.order_type = order_type

@@ -7,18 +7,32 @@ from models.dual_heap import DualHeap
 from exceptions.exceptions import InvalidOrderTypeException, InvalidOrderSideException, UnknownOrderIdException, MissingParameterException, ExtraneousParameterException, UnavailableSymbolException
 from models.order import Order
 import math
+from threading import Thread
+import copy
+from models.transaction import Transaction
+import time
 class PositionManager:
-    def __init__(self):
+    def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event):
+        self._order_books_dict = order_books_dict
+        self._order_books_dict_semaphore = order_books_dict_semaphore
+        self._stop_event = stop_event
+
+        self._open_orders_polling_thread = None
         self._positions_map = dict()
         self._open_orders = dict() # symbol name -> (bid heap, ask heap)
         self._transaction_history = []
         self._order_dict = dict() # order_id -> heap object
         self._largest_order_id = -1 #Initally no orders placed
 
+        self._open_orders_polling_thread = None
+
     def create_order(self, symbol, order_side, order_type, volume, price = None):
         # FOC: check if order can be executed immediately (don't add to open orders)
         # Limit: add order with limit price to open orders
         # Market: add order with inf bid price / 0 ask price
+        if not self._open_orders_polling_thread:
+            self._create_thread_to_poll_open_orders()
+
         if symbol not in self._open_orders:
             # Create dual heap if this is the 1st order
             self._open_orders[symbol] = DualHeap()
@@ -49,7 +63,6 @@ class PositionManager:
             if price:
                 raise ExtraneousParameterException("Price cannot be used as parameter when a market order type is specified in create_order")
             return self._handle_market_order(heap_to_use, symbol, order_side, order_type, volume)
-
         else:
             raise InvalidOrderTypeException(f"'{order_type}' is an invalid order type. Valid order types: 'market', 'limit', 'fok'")
 
@@ -59,10 +72,9 @@ class PositionManager:
         # return newly created order_id
 
     def _insert_order(self, heap_to_use, symbol, order_side, order_type, volume, price):
-        # test that price is an int etc
-        order = Order(symbol, order_side, order_type, volume, price)
-        heapq.heappush(heap_to_use, order)
         order_id = self._get_next_order_id()
+        order = Order(order_id, symbol, order_side, order_type, volume, price)
+        heapq.heappush(heap_to_use, order)
         self._order_dict[order_id] = order
         logging.info(f"Order with order_id {order_id} inserted")
 
@@ -100,7 +112,7 @@ class PositionManager:
         if not volume_requested or volume_requested >= order.volume:
             self._remove_from_heap(heap_to_use, order) #Remove from heap
             del self._order_dict[order_id] #Remove from order dict
-            print(f"{order_id} deleted")
+            logging.info(f"{order_id} deleted")
         else:
             order.volume -= volume_requested
 
@@ -138,6 +150,49 @@ class PositionManager:
             raise UnavailableSymbolException(f"Strategy has not placed any ask orders for symbol {symbol}")
 
         return self._open_orders[symbol].ask_heap[0]
+
+
+    def _create_thread_to_poll_open_orders(self):
+        self._open_orders_polling_thread = Thread(
+            target=self._check_for_executable_orders)  
+        self._open_orders_polling_thread.start()
+
+    def _check_for_executable_orders(self):
+        time.sleep(1)
+        logging.info("Starting open order polling thread")
+        while not self._stop_event.is_set():
+            self._order_books_dict_semaphore.acquire()
+            order_books_snapshot = copy.deepcopy(self._order_books_dict) # get a copy of the current prices
+            self._order_books_dict_semaphore.release()
+            for symbol, dual_heap in self._open_orders.items(): # look through every 
+                if symbol in order_books_snapshot:
+                    symbol_quote = order_books_snapshot[symbol]
+                    self.execute_any_bid_orders(symbol, dual_heap.bid_heap, symbol_quote.ask)
+                    self.execute_any_ask_orders(symbol, dual_heap.ask_heap, symbol_quote.bid)
+            
+            time.sleep(0.4)
+        logging.info("Open order polling thread finished")
+            
+
+    def execute_any_bid_orders(self, symbol, bid_heap, live_best_ask_half_quote):
+        while bid_heap and bid_heap[0] >= live_best_ask_half_quote.price:
+            executed = heapq.heappop(bid_heap)
+
+            logging.info(f"EXECUTED bid order: {executed}")
+
+            self._transaction_history.append(Transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_ask_half_quote.price, time.time()))
+            del self._order_dict[executed.order_id]
+
+
+    def execute_any_ask_orders(self, symbol, ask_heap, live_best_bid_half_quote):
+        while ask_heap and ask_heap[0] <= live_best_bid_half_quote.price:
+            executed = heapq.heappop(ask_heap)
+
+
+            logging.info(f"EXECUTED ask order: {executed}")
+            self._transaction_history.append(Transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_bid_half_quote.price, time.time()))
+            del self._order_dict[executed.order_id]
+
 
 
     # dict of id -> order object

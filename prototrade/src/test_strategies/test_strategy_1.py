@@ -23,16 +23,14 @@ def test_strategy(exchange, test_param_1, test_param_2):
 
         time.sleep(2)
 
-        exchange.create_order("AAPL", "ask", "market", random.randrange(2,20))
+        exchange.create_order("AAPL", "ask", "market", 8)
         
-        aapl_orders = exchange.get_orders("AAPL").items()
-        for x in aapl_orders:
+        for x in exchange.get_orders("AAPL").items():
             print(x)
         print("BEST BID: ", exchange._position_manager._open_orders["AAPL"].ask_heap[0])
         time.sleep(2)
 
         cancel_id = random.choice([k for k,_ in exchange.get_orders().items()])
-        
 
         exchange.cancel_order(cancel_id)
         print(f"CANCELLED {cancel_id}")

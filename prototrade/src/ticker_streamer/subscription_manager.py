@@ -59,7 +59,6 @@ class SubscriptionManager:
         logging.info("Subscription queue reader finished")
 
     def stop_queue_polling(self):
-        # self._subscription_queue.close()
         if self._queue_polling_thread:
             # Inform consumer thread to stop
             self._subscription_queue.put(self._SENTINEL)

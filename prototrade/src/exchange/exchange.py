@@ -16,7 +16,7 @@ class Exchange:
         self.exchange_num = exchange_num
         self._stop_event = stop_event
 
-        self._position_manager = PositionManager()
+        self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event)
         self._subscribed_symbols = set()
 
     def get_subscribed_books(self):
