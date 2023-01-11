@@ -5,7 +5,7 @@ from exceptions.exceptions import UnavailableSymbolException, SubscriptionExcept
 import logging
 from position_management.position_manager import PositionManager
 
-SYMBOL_REQUEST_TIMEOUT = 4
+SYMBOL_REQUEST_TIMEOUT = 8
 class Exchange:
 
     def __init__(self, order_books_dict, order_books_dict_semaphore, subscription_queue, error_queue, exchange_num, stop_event):

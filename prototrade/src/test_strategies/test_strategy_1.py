@@ -15,28 +15,26 @@ def main():
 def test_strategy(exchange, test_param_1, test_param_2):
     print(f"p1:{test_param_1} p2:{test_param_2}")
 
-    # exchange.subscribe("AAPL")
+    exchange.subscribe("AAPL")
     while exchange.is_running():
         order_books = exchange.get_subscribed_books()
+        aapl_price = order_books["AAPL"].bid.price
+        print(f"AAPL PRICE: {aapl_price}")
+        exchange.create_order("AAPL", "bid", "limit", random.randrange(2,20), random.randrange(round(aapl_price-50),round(aapl_price+50)))
 
-        exchange.create_order("AAPL", "ask", "limit", random.randrange(2,20), random.randrange(50,100))
-
-        time.sleep(2)
-
-        exchange.create_order("AAPL", "ask", "market", 8)
         
         for x in exchange.get_orders("AAPL").items():
             print(x)
-        print("BEST BID: ", exchange._position_manager._open_orders["AAPL"].ask_heap[0])
-        time.sleep(2)
+        # print("BEST BID: ", exchange._position_manager._open_orders["AAPL"].ask_heap[0])
+        time.sleep(4)
 
-        cancel_id = random.choice([k for k,_ in exchange.get_orders().items()])
+        # cancel_id = random.choice([k for k,_ in exchange.get_orders().items()])
 
-        exchange.cancel_order(cancel_id)
-        print(f"CANCELLED {cancel_id}")
-        for x in exchange.get_orders("AAPL").items():
-            print(x)
-        time.sleep(5)
+        # exchange.cancel_order(cancel_id)
+        # print(f"CANCELLED {cancel_id}")
+        # for x in exchange.get_orders("AAPL").items():
+        #     print(x)
+        # time.sleep(5)
         
     print("Strategy 0 FINISHED")
 

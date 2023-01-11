@@ -165,7 +165,7 @@ class PositionManager:
             order_books_snapshot = copy.deepcopy(self._order_books_dict) # get a copy of the current prices
             self._order_books_dict_semaphore.release()
             for symbol, dual_heap in self._open_orders.items(): # look through every 
-                if symbol in order_books_snapshot:
+                if symbol in order_books_snapshot:  
                     symbol_quote = order_books_snapshot[symbol]
                     self.execute_any_bid_orders(symbol, dual_heap.bid_heap, symbol_quote.ask)
                     self.execute_any_ask_orders(symbol, dual_heap.ask_heap, symbol_quote.bid)
@@ -175,7 +175,7 @@ class PositionManager:
             
 
     def execute_any_bid_orders(self, symbol, bid_heap, live_best_ask_half_quote):
-        while bid_heap and bid_heap[0] >= live_best_ask_half_quote.price:
+        while bid_heap and bid_heap[0].price >= live_best_ask_half_quote.price:
             executed = heapq.heappop(bid_heap)
 
             logging.info(f"EXECUTED bid order: {executed}")
@@ -185,13 +185,15 @@ class PositionManager:
 
 
     def execute_any_ask_orders(self, symbol, ask_heap, live_best_bid_half_quote):
-        while ask_heap and ask_heap[0] <= live_best_bid_half_quote.price:
+        while ask_heap and ask_heap[0].price <= live_best_bid_half_quote.price:
             executed = heapq.heappop(ask_heap)
 
 
             logging.info(f"EXECUTED ask order: {executed}")
             self._transaction_history.append(Transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_bid_half_quote.price, time.time()))
             del self._order_dict[executed.order_id]
+
+            # SOME INDICATION OF CURRENT POSIITONS E.G SELL SHORT
 
 
 
