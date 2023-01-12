@@ -19,4 +19,4 @@ class Order:
       return self.price < other.price # min ask at the top of heap
 
    def __repr__(self):
-      return f"Order: (symbol={self.symbol}, side={self.order_side}, type={self.order_type}, vol={self.volume}, price={self.price})"
+      return f"Order(symbol={self.symbol}, side={self.order_side}, type={self.order_type}, vol={self.volume}, price={self.price})"

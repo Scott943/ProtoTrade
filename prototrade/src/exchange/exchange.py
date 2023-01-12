@@ -4,6 +4,7 @@ import time
 from exceptions.exceptions import UnavailableSymbolException, SubscriptionException
 import logging
 from position_management.position_manager import PositionManager
+from copy import deepcopy
 
 SYMBOL_REQUEST_TIMEOUT = 8
 class Exchange:
@@ -48,7 +49,7 @@ class Exchange:
                     f"Symbol request timeout: strategy number {self.exchange_num + 1} cannot find requested symbol '{symbol}' from exchange")
 
     def get_subscriptions(self):
-        return self._subscribed_symbols
+        return deepcopy(self._subscribed_symbols)
 
     def subscribe(self, symbol):
         self._subscription_queue.put(
@@ -84,3 +85,9 @@ class Exchange:
 
     def cancel_order(self, *args):
         self._position_manager.cancel_order(*args)
+
+    def get_positions(self, *args):
+        return self._position_manager.get_positions(*args)
+
+    def get_transactions(self, *args):
+        return self._position_manager.get_transactions(*args)

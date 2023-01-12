@@ -8,9 +8,10 @@ from exceptions.exceptions import InvalidOrderTypeException, InvalidOrderSideExc
 from models.order import Order
 import math
 from threading import Thread
-import copy
+from copy import deepcopy
 from models.transaction import Transaction
 import time
+from collections import defaultdict
 class PositionManager:
     def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event):
         self._order_books_dict = order_books_dict
@@ -18,7 +19,7 @@ class PositionManager:
         self._stop_event = stop_event
 
         self._open_orders_polling_thread = None
-        self._positions_map = dict()
+        self._positions_map = defaultdict(int)
         self._open_orders = dict() # symbol name -> (bid heap, ask heap)
         self._transaction_history = []
         self._order_dict = dict() # order_id -> heap object
@@ -143,14 +144,13 @@ class PositionManager:
         if symbol not in self._open_orders:
             raise UnavailableSymbolException(f"Strategy has not placed any bid orders for symbol {symbol}")
 
-        return self._open_orders[symbol].bid_heap[0]
+        return deepcopy(self._open_orders[symbol].bid_heap[0])
 
     def get_strategy_best_ask(self, symbol):
         if symbol not in self._open_orders:
             raise UnavailableSymbolException(f"Strategy has not placed any ask orders for symbol {symbol}")
 
-        return self._open_orders[symbol].ask_heap[0]
-
+        return deepcopy(self._open_orders[symbol].ask_heap[0])
 
     def _create_thread_to_poll_open_orders(self):
         self._open_orders_polling_thread = Thread(
@@ -162,15 +162,15 @@ class PositionManager:
         logging.info("Starting open order polling thread")
         while not self._stop_event.is_set():
             self._order_books_dict_semaphore.acquire()
-            order_books_snapshot = copy.deepcopy(self._order_books_dict) # get a copy of the current prices
+            order_books_snapshot = deepcopy(self._order_books_dict) # get a copy of the current prices
             self._order_books_dict_semaphore.release()
-            for symbol, dual_heap in self._open_orders.items(): # look through every 
+            for symbol, dual_heap in self._open_orders.items(): # look through every symbol's dual heap 
                 if symbol in order_books_snapshot:  
                     symbol_quote = order_books_snapshot[symbol]
                     self.execute_any_bid_orders(symbol, dual_heap.bid_heap, symbol_quote.ask)
                     self.execute_any_ask_orders(symbol, dual_heap.ask_heap, symbol_quote.bid)
             
-            time.sleep(0.4)
+            time.sleep(0.3)
         logging.info("Open order polling thread finished")
             
 
@@ -178,34 +178,34 @@ class PositionManager:
         while bid_heap and bid_heap[0].price >= live_best_ask_half_quote.price:
             executed = heapq.heappop(bid_heap)
 
-            logging.info(f"EXECUTED bid order: {executed}")
+            logging.info(f"EXECUTED bid order at price {live_best_ask_half_quote.price}: {executed}")
 
-            self._transaction_history.append(Transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_ask_half_quote.price, time.time()))
+            transaction = Transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_ask_half_quote.price, time.time())
+            self._transaction_history.append(transaction)
             del self._order_dict[executed.order_id]
+            self._positions_map[symbol] += executed.volume
 
 
     def execute_any_ask_orders(self, symbol, ask_heap, live_best_bid_half_quote):
         while ask_heap and ask_heap[0].price <= live_best_bid_half_quote.price:
             executed = heapq.heappop(ask_heap)
 
-
-            logging.info(f"EXECUTED ask order: {executed}")
-            self._transaction_history.append(Transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_bid_half_quote.price, time.time()))
+            logging.info(f"EXECUTED ask order at price {live_best_bid_half_quote.price}: {executed}")
+            
+            transaction = Transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_bid_half_quote.price, time.time())
+            self._transaction_history.append(transaction)
             del self._order_dict[executed.order_id]
+            self._positions_map[symbol] -= executed.volume
 
-            # SOME INDICATION OF CURRENT POSIITONS E.G SELL SHORT
+    def get_positions(self, symbol_filter = None):
+        if symbol_filter:
+            return self._positions_map[symbol_filter] # int of positions
+        return deepcopy(self._positions_map)
 
-
-
-    # dict of id -> order object
-
-    # to return orders for a symbol, filter orders for symbol
-
-    # prioritise checking heap every x seconds
-
-
-
-
+    def get_transactions(self, symbol_filter = None):
+        if symbol_filter:
+            return [deepcopy(trans) for trans in self._transaction_history if trans.symbol == symbol_filter]
+        return deepcopy(self._transaction_history)
     
 # Thread that pseudo-executes orders must give a transaction price of the corresponding bid/ask price, not the limit price 
 
