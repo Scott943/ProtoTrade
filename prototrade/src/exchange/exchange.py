@@ -69,7 +69,7 @@ class Exchange:
         return not self._stop_event.is_set()
 
     def create_order(self, *args):
-        self._position_manager.create_order(*args)
+        return self._position_manager.create_order(*args)
 
     def get_orders(self, *args):
         return self._position_manager.get_orders(*args)

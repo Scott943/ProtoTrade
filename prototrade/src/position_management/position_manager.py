@@ -32,7 +32,7 @@ class PositionManager:
         # Limit: add order with limit price to open orders
         # Market: add order with inf bid price / 0 ask price
         if not self._open_orders_polling_thread:
-            self._create_thread_to_poll_open_orders()
+            self._create_thread_to_poll_open_orders() #Start thread to poll open orders
 
         if symbol not in self._open_orders:
             # Create dual heap if this is the 1st order
@@ -54,15 +54,17 @@ class PositionManager:
         else:
             raise InvalidOrderSideException(f"'{order_side}' is an invalid order side. Valid order sides: 'bid', 'ask'")
 
+        if order_type in ["fok", "limit"] and not price:
+            raise MissingParameterException(f"Must include price as a parameter when inserting a {order_type} order in create_order")
+
+        elif order_type == "market" and price:
+            raise ExtraneousParameterException("Price cannot be used as parameter when a market order type is specified in create_order")
+            
         if order_type == "fok":
             return self._handle_fok(symbol, order_side, volume, price)
         elif order_type == "limit":
-            if not price:
-                raise MissingParameterException("Must include price as a parameter when inserting a limit order in create_order")
             return self._handle_limit_order(heap_to_use, symbol, order_side, order_type, volume, price)
         elif order_type == "market":
-            if price:
-                raise ExtraneousParameterException("Price cannot be used as parameter when a market order type is specified in create_order")
             return self._handle_market_order(heap_to_use, symbol, order_side, order_type, volume)
         else:
             raise InvalidOrderTypeException(f"'{order_type}' is an invalid order type. Valid order types: 'market', 'limit', 'fok'")
@@ -80,6 +82,21 @@ class PositionManager:
         logging.info(f"Order with order_id {order_id} inserted")
 
         return order_id
+
+    def _handle_fok(self, symbol, order_side, volume, price):
+        self._order_books_dict_semaphore.acquire()
+        quote_for_symbol = deepcopy(self._order_books_dict[symbol]) # get a copy of the current prices
+        self._order_books_dict_semaphore.release() 
+        if order_side == "bid":
+            best_ask_half_quote = quote_for_symbol.ask #match strategy bid against real ask
+            if price >= best_ask_half_quote.price:
+                return self._register_new_transaction(symbol, order_side, "fok", volume, best_ask_half_quote.price, time.time())
+        else:
+            best_bid_half_quote = quote_for_symbol.bid #match strategy bid against real ask
+            if price <= best_bid_half_quote.price:
+                return self._register_new_transaction(symbol, order_side, "fok", volume, best_bid_half_quote.price, time.time())
+        
+        return None # None if FOK order was killed
 
     def _handle_limit_order(self, heap_to_use, symbol, order_side, order_type, volume, price):
         return self._insert_order(heap_to_use, symbol, order_side, order_type, volume, price)
@@ -128,9 +145,6 @@ class PositionManager:
             # Only return orders for requested symbol
             return {k:v for k,v in self._order_dict.items() if v.symbol == symbol} 
         return self._order_dict.copy()
-        
-    def _handle_fok(self, order_side, volume, price): 
-        pass
 
     # Next order ID to assign
     def _get_next_order_id(self):
@@ -158,7 +172,6 @@ class PositionManager:
         self._open_orders_polling_thread.start()
 
     def _check_for_executable_orders(self):
-        time.sleep(1)
         logging.info("Starting open order polling thread")
         while not self._stop_event.is_set():
             self._order_books_dict_semaphore.acquire()
@@ -173,6 +186,16 @@ class PositionManager:
             time.sleep(0.3)
         logging.info("Open order polling thread finished")
             
+    def _register_new_transaction(self, symbol, order_side, order_type, volume, price, time):
+        transaction = Transaction(symbol, order_side, order_type, volume, price, time)
+
+        self._transaction_history.append(transaction)
+        if order_side == "bid":
+            self._positions_map[symbol] += volume
+        else:
+            self._positions_map[symbol] -= volume
+
+        return transaction
 
     def execute_any_bid_orders(self, symbol, bid_heap, live_best_ask_half_quote):
         while bid_heap and bid_heap[0].price >= live_best_ask_half_quote.price:
@@ -180,11 +203,8 @@ class PositionManager:
 
             logging.info(f"EXECUTED bid order at price {live_best_ask_half_quote.price}: {executed}")
 
-            transaction = Transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_ask_half_quote.price, time.time())
-            self._transaction_history.append(transaction)
+            self._register_new_transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_ask_half_quote.price, time.time())
             del self._order_dict[executed.order_id]
-            self._positions_map[symbol] += executed.volume
-
 
     def execute_any_ask_orders(self, symbol, ask_heap, live_best_bid_half_quote):
         while ask_heap and ask_heap[0].price <= live_best_bid_half_quote.price:
@@ -192,10 +212,8 @@ class PositionManager:
 
             logging.info(f"EXECUTED ask order at price {live_best_bid_half_quote.price}: {executed}")
             
-            transaction = Transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_bid_half_quote.price, time.time())
-            self._transaction_history.append(transaction)
+            self._register_new_transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_bid_half_quote.price, time.time())
             del self._order_dict[executed.order_id]
-            self._positions_map[symbol] -= executed.volume
 
     def get_positions(self, symbol_filter = None):
         if symbol_filter:
@@ -204,7 +222,7 @@ class PositionManager:
 
     def get_transactions(self, symbol_filter = None):
         if symbol_filter:
-            return [deepcopy(trans) for trans in self._transaction_history if trans.symbol == symbol_filter]
+            return deepcopy([trans for trans in self._transaction_history if trans.symbol == symbol_filter])
         return deepcopy(self._transaction_history)
     
 # Thread that pseudo-executes orders must give a transaction price of the corresponding bid/ask price, not the limit price 
