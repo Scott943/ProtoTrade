@@ -3,6 +3,7 @@ import threading
 from models.books import Quote
 import time
 import logging
+import pickle
 
 BASE_URL = "https://api.alpaca.markets"
 
@@ -48,3 +49,6 @@ class AlpacaDataStreamer:
                       q.ask_price, q.timestamp)
         self._price_updater.update_price(q.symbol, quote)
         # this should push the new_book to the price updater
+
+    def get_rest_api(self):
+        return tradeapi.REST(self._alpaca_api_key, self._alpaca_secret_key)

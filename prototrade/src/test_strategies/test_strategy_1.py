@@ -28,6 +28,16 @@ def test_strategy(exchange, test_param_1, test_param_2):
         # print("BEST BID: ", exchange._position_manager._open_orders["AAPL"].ask_heap[0])
         time.sleep(1)
 
+        symbol = "SPY"
+        timeframe = "1Day"
+        start = "2021-01-01"
+        end = "2021-01-30"
+
+        # Retrieve daily bars for SPY in a dataframe and printing the first 5 rows
+        spy_bars = exchange.historical.get_bars(symbol, timeframe, start, end).df
+        print(spy_bars)
+        aapl_trades = exchange.historical.get_trades(symbol, limit=100).df
+        print(aapl_trades)
         print("AAPL: position", exchange.get_positions("AAPL"))
         # print("Transactions:", exchange.get_transactions("AAPL"))
         # cancel_id = random.choice([k for k,_ in exchange.get_orders().items()])

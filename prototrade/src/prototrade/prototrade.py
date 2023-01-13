@@ -1,5 +1,5 @@
 from multiprocessing import Process, Manager, Semaphore, current_process, Pool
-from multiprocessing.managers import BaseManager
+from multiprocessing.managers import BaseManager, NamespaceProxy
 from ticker_streamer.alpaca_streamer import AlpacaDataStreamer
 from ticker_streamer.price_updater import PriceUpdater
 from position_management.test_puller import TestPuller
@@ -8,6 +8,7 @@ from exchange.exchange import Exchange
 from ticker_streamer.subscription_manager import SubscriptionManager
 from prototrade.error_processor import ErrorProcessor
 from models.error_event import ErrorEvent
+import alpaca_trade_api as tradeapi
 
 import sys
 import traceback
@@ -36,12 +37,14 @@ class ProtoTrade:
         self._streamer = None
         self._stop_event = None
         self._strategy_process_pool = None
+        self._rest_api_manager = None
 
         self.num_strategies = 0  # This will be incremented when strategies are added
         self._strategy_list = []
 
     def _create_processes_for_strategies(self):
         logging.info(f"Number of strategies: {self.num_strategies}")
+
 
         # Temporarily ignore SIGINT to prevent interrupts being handled in child processes
         signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -61,7 +64,7 @@ class ProtoTrade:
         # start readers
         for strategy_num, strategy in enumerate(self._strategy_list):
             exchange = Exchange(
-                self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event)
+                self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api)
 
             res = self._strategy_process_pool.apply_async(
                 run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
@@ -88,6 +91,9 @@ class ProtoTrade:
             logging.info("Subscription manager stopped")
         
         # Clean up processes before the streamer as processes rely on streamer 
+        if self._rest_api_manager:
+            self._rest_api_manager.shutdown()
+            
         self._streamer.stop()
         logging.info("Streamer stopped")
             
@@ -121,6 +127,8 @@ class ProtoTrade:
         self._strategy_list.append(Strategy(strategy_func, args))
 
     def run_strategies(self):
+        
+
         self._order_books_dict = self._create_shared_memory(
             self.num_strategies)
 
@@ -133,6 +141,8 @@ class ProtoTrade:
             self.price_updater,
             self._exchange_name
         )
+
+        self.create_shared_rest_api_class()
 
         self._subscription_queue = self.manager.Queue()
 
@@ -151,8 +161,15 @@ class ProtoTrade:
 
         self._create_processes_for_strategies()
 
-# This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
+    # This creates a REST api object that is shareable across strategy processes. This means the user can query historical data
+    def create_shared_rest_api_class(self):
+        CustomManager.register('HistoricalAPI', HistoricalAPI, HistoricalAPIProxy)
+        self._rest_api_manager = CustomManager()
+        self._rest_api_manager.start()
+        rest_api = self._rest_api_manager.HistoricalAPI(self._streamer.get_rest_api()) # Pass in the actual rest api as a parameter
+        self._historical_api = rest_api.api #Get the api object within the class wrapper
 
+# This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
 def run_strategy(error_queue, func, exchange, *args):
     try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
         func(exchange, *args)
@@ -167,3 +184,15 @@ def handle_error(error_queue, exchange_num):
     exception_info = traceback.format_exc() # Get a string with full original stack trace
     error_queue.put(ErrorEvent(exchange_num, exception_info))
     logging.error(f"Process {exchange_num} EXCEPTION")
+
+class CustomManager(BaseManager):
+    pass
+
+class HistoricalAPI:
+    def __init__(self, api):
+        self.api = api #Holds the api to be used to acquire historical data
+
+class HistoricalAPIProxy(NamespaceProxy):
+    # We need to expose the same __dunder__ methods as NamespaceProxy,
+    # in addition to the b method.
+    _exposed_ = ('__getattribute__', '__setattr__', '__delattr__', 'api')

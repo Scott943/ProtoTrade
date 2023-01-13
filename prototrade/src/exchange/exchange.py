@@ -9,13 +9,14 @@ from copy import deepcopy
 SYMBOL_REQUEST_TIMEOUT = 8
 class Exchange:
 
-    def __init__(self, order_books_dict, order_books_dict_semaphore, subscription_queue, error_queue, exchange_num, stop_event):
+    def __init__(self, order_books_dict, order_books_dict_semaphore, subscription_queue, error_queue, exchange_num, stop_event, shared_rest_api):
         self._order_books_dict = order_books_dict
         self._order_books_dict_semaphore = order_books_dict_semaphore
         self._subscription_queue = subscription_queue
         self._error_queue = error_queue
         self.exchange_num = exchange_num
         self._stop_event = stop_event
+        self.historical = shared_rest_api
 
         self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event)
         self._subscribed_symbols = set()
