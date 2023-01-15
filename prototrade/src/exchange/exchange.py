@@ -92,3 +92,9 @@ class Exchange:
 
     def get_transactions(self, *args):
         return self._position_manager.get_transactions(*args)
+
+    def get_pnl(self, *args):
+        return self._position_manager.get_pnl(*args)
+
+    def get_rolling_pnl(self, *args):
+        return self._position_manager.get_rolling_pnl(*args)

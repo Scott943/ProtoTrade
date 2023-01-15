@@ -29,12 +29,13 @@ class SubscriptionManager:
 
     def unsubscribe(self, strategy_num, symbol):
         self.symbol_to_strategies_dict[symbol].remove(strategy_num)
+        logging.info(f"Strategy {strategy_num} unsubs from {symbol}.")
         # if no strategies interested... unsubscribe permanantly
-        if not self.symbol_to_strategies_dict[symbol]:
+        if not self.symbol_to_strategies_dict[symbol]: 
             self._streamer.unsubscribe(symbol)
-            del self.symbol_to_strategies_dict[symbol]
+            del self.symbol_to_strategies_dict[symbol] # remove the entry for the symbol (removes the set of strategies)
             logging.info(
-                f"Strategy {strategy_num} unsubs from {symbol}. No strategies interested")
+                f"No strategies interested in {symbol}")
 
     def print_books_subscribed_to(self):
         logging.info(*[key for key in self.symbol_to_strategies_dict], sep=",")

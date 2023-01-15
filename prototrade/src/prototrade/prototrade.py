@@ -45,7 +45,6 @@ class ProtoTrade:
     def _create_processes_for_strategies(self):
         logging.info(f"Number of strategies: {self.num_strategies}")
 
-
         # Temporarily ignore SIGINT to prevent interrupts being handled in child processes
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -127,8 +126,6 @@ class ProtoTrade:
         self._strategy_list.append(Strategy(strategy_func, args))
 
     def run_strategies(self):
-        
-
         self._order_books_dict = self._create_shared_memory(
             self.num_strategies)
 

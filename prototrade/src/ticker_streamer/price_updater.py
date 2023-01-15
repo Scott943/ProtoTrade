@@ -1,3 +1,4 @@
+
 class PriceUpdater:
     def __init__(self, order_books_dict, order_books_dict_semaphore, num_strategies, stop_event):
         self.order_books_dict = order_books_dict
@@ -19,8 +20,6 @@ class PriceUpdater:
         for _ in range(self.num_strategies):
             # release all
             self.order_books_dict_semaphore.release()
-          
-    
     
     # on quote:
     # add new order book to order book list

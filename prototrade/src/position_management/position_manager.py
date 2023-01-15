@@ -12,6 +12,7 @@ from copy import deepcopy
 from models.transaction import Transaction
 import time
 from collections import defaultdict
+import pandas as pd
 class PositionManager:
     def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event):
         self._order_books_dict = order_books_dict
@@ -24,8 +25,11 @@ class PositionManager:
         self._transaction_history = []
         self._order_dict = dict() # order_id -> heap object
         self._largest_order_id = -1 #Initally no orders placed
+        self._transaction_pnl = 0
 
         self._open_orders_polling_thread = None
+
+        self._rolling_pnl_list = []
 
     def create_order(self, symbol, order_side, order_type, volume, price = None):
         # FOC: check if order can be executed immediately (don't add to open orders)
@@ -173,6 +177,7 @@ class PositionManager:
 
     def _check_for_executable_orders(self):
         logging.info("Starting open order polling thread")
+        last_pnl_time = time.time()
         while not self._stop_event.is_set():
             self._order_books_dict_semaphore.acquire()
             order_books_snapshot = deepcopy(self._order_books_dict) # get a copy of the current prices
@@ -183,8 +188,17 @@ class PositionManager:
                     self.execute_any_bid_orders(symbol, dual_heap.bid_heap, symbol_quote.ask)
                     self.execute_any_ask_orders(symbol, dual_heap.ask_heap, symbol_quote.bid)
             
+            if time.time() - last_pnl_time > 1:
+                self._rolling_pnl_list.append([time.time(), self.get_pnl()])
+                last_pnl_time = time.time()
+
             time.sleep(0.3)
+
+            
         logging.info("Open order polling thread finished")
+
+    def get_rolling_pnl(self):
+        return pd.DataFrame(self._rolling_pnl_list, columns = ['timestamp', 'pnl'])
             
     def _register_new_transaction(self, symbol, order_side, order_type, volume, price, time):
         transaction = Transaction(symbol, order_side, order_type, volume, price, time)
@@ -194,6 +208,13 @@ class PositionManager:
             self._positions_map[symbol] += volume
         else:
             self._positions_map[symbol] -= volume
+
+
+        transaction_amount = transaction.price * transaction.volume
+        if transaction.order_side == "bid":
+            self._transaction_pnl -= transaction_amount # bid side so lost money and gained assets
+        else:
+            self._transaction_pnl += transaction_amount # ask side so gained money and lost assets
 
         return transaction
 
@@ -224,6 +245,32 @@ class PositionManager:
         if symbol_filter:
             return deepcopy([trans for trans in self._transaction_history if trans.symbol == symbol_filter])
         return deepcopy(self._transaction_history)
+
+    def get_realised_pnl(self):
+        return self._transaction_pnl
+
+    def get_pnl(self):
+        # for each transaction: price * -volume if bid (lost money gained assets). price * volume if ask (gained money lost assets)
+
+        # for each current position: if position_vol > 0: best_ask * position_vol, if position_vol < 0: best_bid * position_vol
+        
+        pnl = self._transaction_pnl # pnl acquired by the transaction history
+        
+        self._order_books_dict_semaphore.acquire()
+        order_books_snapshot = deepcopy(self._order_books_dict) # get a copy of the current prices
+        self._order_books_dict_semaphore.release()
+
+        # add all unrealised pnl from current positions
+        for symbol, amount in self._positions_map.items():
+            if amount > 0:
+                pnl += order_books_snapshot[symbol].ask.price * amount # the money obtained if all shares were sold at best_ask price
+            elif amount < 0:
+                pnl -= order_books_snapshot[symbol].bid.price * amount # the money spent to obtain all shares back at best_bid price
+
+        return pnl
+
+    def hack_out(self):
+        pass
     
 # Thread that pseudo-executes orders must give a transaction price of the corresponding bid/ask price, not the limit price 
 
