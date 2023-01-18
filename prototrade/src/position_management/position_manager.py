@@ -3,6 +3,7 @@
 
 import logging
 import heapq
+import traceback
 from models.dual_heap import DualHeap
 from exceptions.exceptions import InvalidOrderTypeException, InvalidOrderSideException, UnknownOrderIdException, MissingParameterException, ExtraneousParameterException, UnavailableSymbolException
 from models.order import Order
@@ -14,11 +15,18 @@ import time
 from collections import defaultdict
 import pandas as pd
 from threading import Lock
+import datetime
+
+from models.error_event import ErrorEvent
+
+SYMBOL_REQUEST_TIMEOUT = 5
 class PositionManager:
-    def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event):
+    def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event, error_queue, exchange_num):
         self._order_books_dict = order_books_dict
         self._order_books_dict_semaphore = order_books_dict_semaphore
         self._stop_event = stop_event
+        self._error_queue = error_queue
+        self._exchange_num = exchange_num
 
         self._open_orders_polling_thread = None
         self._positions_map = defaultdict(int)
@@ -50,40 +58,52 @@ class PositionManager:
             # Create dual heap if this is the 1st order
             self._open_orders[symbol] = DualHeap()
             logging.info(f"Creating heap for {symbol}")
-        
 
         dual_heap = self._open_orders[symbol]
         
-
-        if price and (type(price) != float and type(price) != int):
-            raise TypeError(f"The price parameter given, {price}, must be an integer or float.")
+        if price:
+            try:
+                float(price)
+            except:
+                print("type error")
+                self.release_locks()
+                raise TypeError(f"The price parameter given, {price}, must be an integer or float.")
         
-        if not type(volume) is int:
+
+        try:
+            int(volume)
+        except:
+            print("volume error")
+            self.release_locks()
             raise TypeError(f"The volume parameter given, {volume}, must be an integer.")
 
+        print("checking bid ask")
         if order_side == "bid":
             heap_to_use = dual_heap.bid_heap
         elif order_side == "ask":
             heap_to_use = dual_heap.ask_heap
         else:
+            self.release_locks()
             raise InvalidOrderSideException(f"'{order_side}' is an invalid order side. Valid order sides: 'bid', 'ask'")
 
         if order_type in ["fok", "limit"] and not price:
+            self.release_locks()
             raise MissingParameterException(f"Must include price as a parameter when inserting a {order_type} order in create_order")
 
         elif order_type == "market" and price:
+            self.release_locks()
             raise ExtraneousParameterException("Price cannot be used as parameter when a market order type is specified in create_order")
             
         if order_type == "fok":
-            self._order_objects_lock.release() # fok doesn't use heap so can release lock
+            self.release_locks() # fok doesn't use heap so can release lock
             return self._handle_fok(symbol, order_side, volume, price)
         elif order_type == "limit":
             return self._handle_limit_order(heap_to_use, symbol, order_side, order_type, volume, price)
         elif order_type == "market":
             return self._handle_market_order(heap_to_use, symbol, order_side, order_type, volume)
         else:
+            self.release_locks()
             raise InvalidOrderTypeException(f"'{order_type}' is an invalid order type. Valid order types: 'market', 'limit', 'fok'")
-
 
         # Need to add the order to dual heap, then add a entry in the _order_dict to that new object
         # As the key for the entry, create a new order_id
@@ -102,8 +122,12 @@ class PositionManager:
 
     def _handle_fok(self, symbol, order_side, volume, price):
         self._order_books_dict_semaphore.acquire()
+
+        if symbol not in self._order_books_dict:
+            self._wait_for_symbol_to_arrive(symbol)
+
         quote_for_symbol = deepcopy(self._order_books_dict[symbol]) # get a copy of the current prices
-        self._order_books_dict_semaphore.release() 
+        self._order_books_dict_semaphore.release()
         if order_side == "bid":
             best_ask_half_quote = quote_for_symbol.ask #match strategy bid against real ask
             if price >= best_ask_half_quote.price:
@@ -116,6 +140,7 @@ class PositionManager:
         return None # None if FOK order was killed
 
     def _handle_limit_order(self, heap_to_use, symbol, order_side, order_type, volume, price):
+        print("limit order")
         return self._insert_order(heap_to_use, symbol, order_side, order_type, volume, price)
 
     def _handle_market_order(self, heap_to_use, symbol, order_side, order_type, volume):
@@ -123,6 +148,27 @@ class PositionManager:
             return self._insert_order(heap_to_use, symbol, order_side, order_type, volume, math.inf)
         else:
             return self._insert_order(heap_to_use, symbol, order_side, order_type, volume, 0)
+
+
+    def _wait_for_symbol_to_arrive(self, symbol):
+        start_time = time.time()
+        while symbol not in self._order_books_dict:
+            self._order_books_dict_semaphore.release()
+            time.sleep(0.2)
+            logging.info(f"PM Waiting for {symbol} to come in")
+            self._order_books_dict_semaphore.acquire()
+
+            if time.time() - start_time > SYMBOL_REQUEST_TIMEOUT:
+                self._order_books_dict_semaphore.release()
+                self.release_locks()
+                raise UnavailableSymbolException(
+                    f"Symbol request timeout: strategy number {self._exchange_num + 1} cannot find requested symbol '{symbol}' from exchange. Check symbol exists & exchange is open.")
+
+            if self._stop_event.is_set():
+                self._order_books_dict_semaphore.release()
+                self.release_locks()
+                raise UnavailableSymbolException(
+                    f"Interrupt while waiting for symbol '{symbol}' to arrive in strategy number {self.exchange_num + 1}")
 
     def cancel_order(self, order_id, volume_requested = None):
         # remove volume from order
@@ -135,6 +181,7 @@ class PositionManager:
 
         self._order_objects_lock.acquire()
         if order_id not in self._order_dict:
+            self.release_locks()
             raise UnknownOrderIdException(f"Order ID {order_id} unknown")
         
         order = self._order_dict[order_id]
@@ -185,6 +232,7 @@ class PositionManager:
     def get_strategy_best_bid(self, symbol):
         self._order_objects_lock.acquire()
         if symbol not in self._open_orders:
+            self.release_locks()
             raise UnavailableSymbolException(f"Strategy has not placed any bid orders for symbol {symbol}")
 
         best_bid = deepcopy(self._open_orders[symbol].bid_heap[0])
@@ -194,6 +242,7 @@ class PositionManager:
     def get_strategy_best_ask(self, symbol):
         self._order_objects_lock.acquire()
         if symbol not in self._open_orders:
+            self.release_locks()
             raise UnavailableSymbolException(f"Strategy has not placed any ask orders for symbol {symbol}")
 
         best_bid = deepcopy(self._open_orders[symbol].ask_heap[0])
@@ -202,41 +251,68 @@ class PositionManager:
 
     def _create_thread_to_poll_open_orders(self):
         self._open_orders_polling_thread = Thread(
-            target=self._check_for_executable_orders)  
+            target=self._start_thread)  
         self._open_orders_polling_thread.start()
+
+    def _start_thread(self):
+        try:
+            self._check_for_executable_orders()
+        except Exception as e: # if exception in thread then release all locks and place error on queue
+            self.release_locks() 
+            handle_error(self._error_queue, self._exchange_num)
+
+    def release_locks(self):
+        logging.info("Releasing all PM locks")
+        if self._order_objects_lock.locked():
+            self._order_objects_lock.release()
+
+        if self._rolling_pnl_list_lock.locked():
+            self._rolling_pnl_list_lock.release()
+        
+        if self._positions_map_lock.locked():
+            self._positions_map_lock.release()
+        
+        if self._transaction_pnl_lock.locked():
+            self._transaction_pnl_lock.release
+        
+        if self._transaction_history_lock.locked():
+            self._transaction_history_lock.release()
 
     def _check_for_executable_orders(self):
         logging.info("Starting open order polling thread")
         last_pnl_time = time.time()
         while not self._stop_event.is_set():
             self._order_books_dict_semaphore.acquire()
+            for symbol in self._open_orders:
+                if symbol not in self._order_books_dict: 
+                    self._wait_for_symbol_to_arrive(symbol) 
             order_books_snapshot = deepcopy(self._order_books_dict) # get a copy of the current prices
             self._order_books_dict_semaphore.release()
 
             self._order_objects_lock.acquire()
             for symbol, dual_heap in self._open_orders.items(): # look through every symbol's dual heap 
-                if symbol in order_books_snapshot:  
-                    symbol_quote = order_books_snapshot[symbol]
-                    self.execute_any_bid_orders(symbol, dual_heap.bid_heap, symbol_quote.ask)
-                    self.execute_any_ask_orders(symbol, dual_heap.ask_heap, symbol_quote.bid)
+                symbol_quote = order_books_snapshot[symbol]
+                self.execute_any_bid_orders(symbol, dual_heap.bid_heap, symbol_quote.ask)
+                self.execute_any_ask_orders(symbol, dual_heap.ask_heap, symbol_quote.bid)
             self._order_objects_lock.release()
 
             if time.time() - last_pnl_time > 1:
                 self._rolling_pnl_list_lock.acquire()
-                self._rolling_pnl_list.append([time.time(), self.get_pnl()])
+                self._rolling_pnl_list.append([datetime.datetime.now(), self.get_pnl()])
                 self._rolling_pnl_list_lock.release()
                 last_pnl_time = time.time()
 
             time.sleep(0.3)
+
+            logging.info("Checking executable")
   
         logging.info("Open order polling thread finished")
 
-    def get_rolling_pnl(self):
+    def get_pnl_dataframe(self):
         self._rolling_pnl_list_lock.acquire()
         pnl_df = pd.DataFrame(self._rolling_pnl_list, columns = ['timestamp', 'pnl'])
         self._rolling_pnl_list_lock.release()
         return pnl_df
-
 
     def _register_new_transaction(self, symbol, order_side, order_type, volume, price, time):
         transaction = Transaction(symbol, order_side, order_type, volume, price, time)
@@ -305,14 +381,18 @@ class PositionManager:
 
     def get_pnl(self):
         # for each transaction: price * -volume if bid (lost money gained assets). price * volume if ask (gained money lost assets)
-
         # for each current position: if position_vol > 0: best_ask * position_vol, if position_vol < 0: best_bid * position_vol
         
         pnl = self._transaction_pnl # pnl acquired by the transaction history
+        print(f"Transaction pnl: {pnl}")
         # atomic so doesn't need a lock
 
         self._order_books_dict_semaphore.acquire()
+        for symbol in self._positions_map:
+            if symbol not in self._order_books_dict:
+                self._wait_for_symbol_to_arrive(symbol)
         order_books_snapshot = deepcopy(self._order_books_dict) # get a copy of the current prices
+
         self._order_books_dict_semaphore.release()
 
         # add all unrealised pnl from current positions
@@ -320,10 +400,12 @@ class PositionManager:
         positions = self._positions_map.items()
         self._positions_map_lock.release()
         for symbol, amount in positions:
+            # if symbol not in order_books_snapshot:
+            #     raise UnavailableSymbolException(f"Ensure symbol {symbol} is subscribed to")
             if amount > 0:
                 pnl += order_books_snapshot[symbol].ask.price * amount # the money obtained if all shares were sold at best_ask price
             elif amount < 0:
-                pnl -= order_books_snapshot[symbol].bid.price * amount # the money spent to obtain all shares back at best_bid price
+                pnl += order_books_snapshot[symbol].bid.price * amount # the money spent to obtain all shares back at best_bid price
 
         return pnl
 
@@ -336,3 +418,8 @@ class PositionManager:
 # Thread that pseudo-executes orders must give a transaction price of the corresponding bid/ask price, not the limit price 
 
 # MATCHING ORDERS AGAINST OWN ORDERS?
+
+def handle_error(error_queue, exchange_num):
+    exception_info = traceback.format_exc() # Get a string with full original stack trace
+    error_queue.put(ErrorEvent(exchange_num, exception_info))
+    logging.error(f"Process PM {exchange_num} EXCEPTION")

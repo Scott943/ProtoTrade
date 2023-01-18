@@ -18,7 +18,7 @@ class Exchange:
         self._stop_event = stop_event
         self.historical = shared_rest_api
 
-        self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event)
+        self._position_manager = None
         self._subscribed_symbols = set()
 
     def get_subscribed_books(self):
@@ -47,7 +47,11 @@ class Exchange:
 
             if time.time() - start_time > SYMBOL_REQUEST_TIMEOUT:
                 raise UnavailableSymbolException(
-                    f"Symbol request timeout: strategy number {self.exchange_num + 1} cannot find requested symbol '{symbol}' from exchange")
+                    f"Symbol request timeout: strategy number {self.exchange_num + 1} cannot find requested symbol '{symbol}' from exchange. Check symbol exists & exchange is open.")
+
+            if self._stop_event.is_set():
+                raise UnavailableSymbolException(
+                    f"Interrupt while waiting for symbol '{symbol}' to arrive in strategy number {self.exchange_num + 1}")
 
     def get_subscriptions(self):
         return deepcopy(self._subscribed_symbols)
@@ -69,32 +73,52 @@ class Exchange:
     def is_running(self):
         return not self._stop_event.is_set()
 
+    # Have to create pos manager after passing exchange to process as pos manager contains an unpickleable object
+    def position_manager_decorator(func):
+        def wrapper(self, *args):
+            if not self._position_manager:
+                self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event, self._error_queue, self.exchange_num)
+            return func(self, *args)
+        return wrapper
+
+    @position_manager_decorator
     def create_order(self, *args):
         return self._position_manager.create_order(*args)
 
+    @position_manager_decorator
     def get_orders(self, *args):
         return self._position_manager.get_orders(*args)
 
+    @position_manager_decorator
     def print_heap(self, *args):
         self._position_manager.print_heap(*args)
 
+    @position_manager_decorator
     def get_strategy_best_bid(self, *args):
         return self._position_manager.get_strategy_best_bid(*args)
 
+    @position_manager_decorator
     def get_strategy_best_ask(self, *args):
         return self._position_manager.get_strategy_best_ask(*args)
 
+    @position_manager_decorator
     def cancel_order(self, *args):
         self._position_manager.cancel_order(*args)
 
+    @position_manager_decorator
     def get_positions(self, *args):
         return self._position_manager.get_positions(*args)
 
+    @position_manager_decorator
     def get_transactions(self, *args):
         return self._position_manager.get_transactions(*args)
 
+    @position_manager_decorator
     def get_pnl(self, *args):
         return self._position_manager.get_pnl(*args)
 
-    def get_rolling_pnl(self, *args):
-        return self._position_manager.get_rolling_pnl(*args)
+    @position_manager_decorator
+    def get_pnl_dataframe(self, *args):
+        return self._position_manager.get_pnl_dataframe(*args)
+
+    

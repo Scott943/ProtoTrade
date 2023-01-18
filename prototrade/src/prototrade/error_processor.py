@@ -17,6 +17,7 @@ class ErrorProcessor:
         self._error_processing_thread.start()
 
     def _process_errors(self):
+        logging.info("Error processor started")
         while True:
             event = self._error_queue.get()
 

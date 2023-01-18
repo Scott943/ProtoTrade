@@ -68,6 +68,7 @@ class ProtoTrade:
             res = self._strategy_process_pool.apply_async(
                 run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
 
+            # res.get()
         logging.info("Started strategies")
         self._error_processor.join_thread()
         logging.info("Error processing thread joined")
@@ -77,7 +78,7 @@ class ProtoTrade:
     def stop(self):
         logging.info("Stopping Program")
         self._stop_event.set()  # Inform child processes to stop
-
+        # logging.info(self._error_processor.exception)
         # Prevents any other task from being submitted
         if self._strategy_process_pool:  # Only close pool if it was opened
             logging.info("Joining processes")

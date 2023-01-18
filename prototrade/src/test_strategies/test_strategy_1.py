@@ -11,39 +11,97 @@ def main():
     pt = ProtoTrade("alpaca",
                     "AKFA6O7FWKEQ30SFPB9H",
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
-                    "iex")
-    pt.register_strategy(test_strategy, 5, 8)
+                    "sip")
+    pt.register_strategy(rhys_strat)
+    # pt.register_strategy(test_strategy, 5, 8)
     # pt.register_strategy(test_strategy_2, 6, 10)
     pt.run_strategies()
 
-
-def test_strategy(exchange, test_param_1, test_param_2):
-    print(f"p1:{test_param_1} p2:{test_param_2}")
-
+def rhys_strat(exchange):
     time.sleep(2)
-    exchange.subscribe("AAPL")
-    while exchange.is_running():
-        order_books = exchange.get_subscribed_books()
-        aapl_price = order_books["AAPL"].bid.price
-        print(f"AAPL BID PRICE: {aapl_price}")
-        print(f"AAPL ASK PRICE: {order_books['AAPL'].ask.price}")
-        print("FOK: ", exchange.create_order("AAPL", "ask", "fok", random.randrange(2,20), order_books['AAPL'].bid.price+random.choice([0,0.01])))
+    # exchange.subscribe("PLTR")
+    fair_price = exchange.historical.get_bars("PLTR", "1minute", "2022-01-18", "2022-01-18").df.iloc[0]["open"]
+    print(fair_price)
 
-        # for x in exchange.get_orders("AAPL").items():
-        #     print(x)
-        # print("BEST BID: ", exchange._position_manager._open_orders["AAPL"].ask_heap[0])
+    while exchange.is_running():
+        # order_books = exchange.get_subscribed_books()
+        pltr_price = 6.2
+
+        # print(f"PLTR BID PRICE: {pltr_price}")
+        # print(f"PLTR ASK PRICE: {order_books['PLTR'].ask.price}")
+        
+        vol_rand = random.randrange(2,5)
+
+        exchange.create_order("PLTR", "ask", "limit", vol_rand, fair_price + 0.5)
+
+        for x in exchange.get_orders("PLTR").items():
+            print(x)
+
         time.sleep(1)
+
+        if random.randrange(1, 100) > 69:
+            total_vol = exchange.get_positions("PLTR")
+
+            total_vol /= 2
+
+            total_vol -= 5
+
+            total_vol *= -1
+            print(total_vol)
+
+            exchange.create_order("PLTR", "bid", "market", round(total_vol))
 
         
         print("Transactions:", exchange.get_transactions())
         print("Positions", exchange.get_positions())
 
         # cancel_id = random.choice([k for k,_ in exchange.get_orders().items()])
-        pnl_pd = exchange.get_rolling_pnl()
-        plot = pnl_pd.plot(x="timestamp", y="pnl")
-        plot.set_xlabel("TimeStamp")
-        plot.set_ylabel("Profit / Loss")
-        plt.savefig("test2")
+        pnl_pd = exchange.get_pnl_dataframe()
+        if not pnl_pd.empty:
+            print(pnl_pd)
+            plot = pnl_pd.plot(x="timestamp", y="pnl")
+            plot.set_xlabel("TimeStamp")
+            plot.set_ylabel("Profit / Loss")
+            plt.savefig("test2")
+        # exchange.cancel_order(cancel_id)
+        # print(f"CANCELLED {cancel_id}")
+        # for x in exchange.get_orders("AAPL").items():
+        #     print(x)
+        # time.sleep(5)
+
+        print("PNL:", exchange.get_pnl())
+
+
+def test_strategy(exchange, test_param_1, test_param_2):
+    print(f"p1:{test_param_1} p2:{test_param_2}")
+
+    # time.sleep(2)
+    # exchange.subscribe("AAPL")
+    while exchange.is_running():
+        # order_books = exchange.get_subscribed_books()
+        # aapl_price = order_books["AAPL"].bid.price
+        # print(f"AAPL BID PRICE: {aapl_price}")
+        # print(f"AAPL ASK PRICE: {order_books['AAPL'].ask.price}")
+        
+        # exchange.create_order("AAPL", "bid", "limit", 33,34)
+        exchange.create_order("AAPL", "ask", "limit", random.randrange(2,20), 33+random.choice([0,0.01]))
+
+        for x in exchange.get_orders("AAPL").items():
+            print(x)
+        # print("BEST BID: ", exchange._position_manager._open_orders["AAPL"].ask_heap[0])
+        time.sleep(1)
+        
+        print("Transactions:", exchange.get_transactions())
+        print("Positions", exchange.get_positions())
+
+        # cancel_id = random.choice([k for k,_ in exchange.get_orders().items()])
+        pnl_pd = exchange.get_pnl_dataframe()
+        if not pnl_pd.empty:
+            print(pnl_pd)
+            plot = pnl_pd.plot(x="timestamp", y="pnl")
+            plot.set_xlabel("TimeStamp")
+            plot.set_ylabel("Profit / Loss")
+            plt.savefig("test2")
         # exchange.cancel_order(cancel_id)
         # print(f"CANCELLED {cancel_id}")
         # for x in exchange.get_orders("AAPL").items():
