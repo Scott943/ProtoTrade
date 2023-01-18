@@ -16,6 +16,7 @@ from collections import defaultdict
 import pandas as pd
 from threading import Lock
 import datetime
+import numpy as np
 
 from models.error_event import ErrorEvent
 
@@ -61,19 +62,11 @@ class PositionManager:
 
         dual_heap = self._open_orders[symbol]
         
-        if price:
-            try:
-                float(price)
-            except:
-                print("type error")
-                self.release_locks()
-                raise TypeError(f"The price parameter given, {price}, must be an integer or float.")
-        
+        if price and not np.isreal(price):
+            self.release_locks()
+            raise TypeError(f"The price parameter given, {price}, must be an integer or float. {type(price)}")
 
-        try:
-            int(volume)
-        except:
-            print("volume error")
+        if not isinstance(volume,(int, np.integer)):
             self.release_locks()
             raise TypeError(f"The volume parameter given, {volume}, must be an integer.")
 
@@ -168,7 +161,7 @@ class PositionManager:
                 self._order_books_dict_semaphore.release()
                 self.release_locks()
                 raise UnavailableSymbolException(
-                    f"Interrupt while waiting for symbol '{symbol}' to arrive in strategy number {self.exchange_num + 1}")
+                    f"Interrupt while waiting for symbol '{symbol}' to arrive in strategy number {self._exchange_num + 1}")
 
     def cancel_order(self, order_id, volume_requested = None):
         # remove volume from order

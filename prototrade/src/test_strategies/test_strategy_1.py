@@ -84,7 +84,7 @@ def test_strategy(exchange, test_param_1, test_param_2):
         # print(f"AAPL ASK PRICE: {order_books['AAPL'].ask.price}")
         
         # exchange.create_order("AAPL", "bid", "limit", 33,34)
-        exchange.create_order("AAPL", "ask", "limit", random.randrange(2,20), 33+random.choice([0,0.01]))
+        exchange.create_order("AAPL", "ask", "limit", "lk44", 33+random.choice([0,0.01]))
 
         for x in exchange.get_orders("AAPL").items():
             print(x)
