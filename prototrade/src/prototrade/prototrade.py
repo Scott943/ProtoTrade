@@ -9,6 +9,7 @@ from ticker_streamer.subscription_manager import SubscriptionManager
 from prototrade.error_processor import ErrorProcessor
 from models.error_event import ErrorEvent
 import alpaca_trade_api as tradeapi
+from exceptions.exceptions import ExchangeNotOpenException
 
 import sys
 import traceback
@@ -64,11 +65,11 @@ class ProtoTrade:
         for strategy_num, strategy in enumerate(self._strategy_list):
             exchange = Exchange(
                 self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api)
-
+            logging.info("TEST")
             res = self._strategy_process_pool.apply_async(
                 run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
-
-            # res.get()
+            logging.info(f"Started strategy {strategy_num}")
+            
         logging.info("Started strategies")
         self._error_processor.join_thread()
         logging.info("Error processing thread joined")
@@ -140,6 +141,9 @@ class ProtoTrade:
             self._exchange_name
         )
 
+        if not self._streamer.is_market_open():
+            raise ExchangeNotOpenException(f"The live exchange is currently closed.")
+
         self.create_shared_rest_api_class()
 
         self._subscription_queue = self.manager.Queue()
@@ -170,6 +174,7 @@ class ProtoTrade:
 # This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
 def run_strategy(error_queue, func, exchange, *args):
     try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
+        logging.info(f"Running {exchange.exchange_num}")
         func(exchange, *args)
     except Exception as e:
         try:
@@ -179,9 +184,10 @@ def run_strategy(error_queue, func, exchange, *args):
         # At this point the process has finished and can be joined with the main process
 
 def handle_error(error_queue, exchange_num):
+    logging.error(f"Process {exchange_num} EXCEPTION")
     exception_info = traceback.format_exc() # Get a string with full original stack trace
     error_queue.put(ErrorEvent(exchange_num, exception_info))
-    logging.error(f"Process {exchange_num} EXCEPTION")
+    
 
 class CustomManager(BaseManager):
     pass

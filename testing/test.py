@@ -1,9 +1,10 @@
-from prototrade.prototrade import ProtoTrade
+
 import time
 import random
 import matplotlib
 from matplotlib import pyplot as plt
-
+import sys
+from prototrade.prototrade import ProtoTrade
 
 
 def main():
@@ -18,6 +19,7 @@ def main():
     pt.run_strategies()
 
 def rhys_strat(exchange):
+    print("x")
     time.sleep(2)
     exchange.subscribe("PLTR")
     fair_price = exchange.historical.get_bars("PLTR", "1minute", "2022-01-18", "2022-01-18").df.iloc[0]["open"]

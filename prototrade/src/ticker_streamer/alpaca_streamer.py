@@ -3,7 +3,6 @@ import threading
 from models.books import Quote
 import time
 import logging
-import pickle
 
 BASE_URL = "https://api.alpaca.markets"
 
@@ -52,3 +51,7 @@ class AlpacaDataStreamer:
 
     def get_rest_api(self):
         return tradeapi.REST(self._alpaca_api_key, self._alpaca_secret_key)
+
+    def is_market_open(self):
+        clock = self.get_rest_api().get_clock()
+        return clock.is_open

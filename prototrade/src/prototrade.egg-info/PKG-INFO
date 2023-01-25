@@ -1,10 +1,10 @@
-Metadata-Version: 1.0
+Metadata-Version: 1.2
 Name: prototrade
-Version: 0.0.0
+Version: 0.0.5
 Summary: UNKNOWN
 Home-page: UNKNOWN
-Author: UNKNOWN
-Author-email: UNKNOWN
-License: UNKNOWN
+Author: Scott Parker
+License: MIT
 Description: UNKNOWN
 Platform: UNKNOWN
+Requires-Python: >3.7

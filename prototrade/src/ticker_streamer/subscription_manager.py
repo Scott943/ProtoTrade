@@ -2,6 +2,7 @@ from collections import defaultdict
 from models.subscription_event import SubscribeType
 from threading import Thread
 import logging
+from exceptions.exceptions import UnavailableSymbolException
 
 class SubscriptionManager:
 
@@ -21,15 +22,18 @@ class SubscriptionManager:
 
             self.symbol_to_strategies_dict[symbol].add(strategy_num)
             logging.info(
-                f"Strategy {strategy_num} subscribes to {symbol}")
+                f"Strategy {strategy_num + 1} subscribes to {symbol}")
         else:
             self.symbol_to_strategies_dict[symbol].add(strategy_num)
             logging.info(
-                f"Strategy {strategy_num} subscribes to {symbol}. Entry added")
+                f"Strategy {strategy_num + 1} subscribes to {symbol}. Entry added")
 
     def unsubscribe(self, strategy_num, symbol):
+        if symbol not in self.symbol_to_strategies_dict or strategy_num not in self.symbol_to_strategies_dict[symbol]:
+            raise UnavailableSymbolException(f"Strategy {strategy_num + 1} attempted to unsubscribe from '{symbol}', which is not subscribed to")
+
         self.symbol_to_strategies_dict[symbol].remove(strategy_num)
-        logging.info(f"Strategy {strategy_num} unsubs from {symbol}.")
+        logging.info(f"Strategy {strategy_num + 1} unsubs from {symbol}.")
         # if no strategies interested... unsubscribe permanantly
         if not self.symbol_to_strategies_dict[symbol]: 
             self._streamer.unsubscribe(symbol)

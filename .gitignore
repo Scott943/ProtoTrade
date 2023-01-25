@@ -1,2 +1,5 @@
 investigation
 /prototrade/src/venv/
+build
+dist
+venv

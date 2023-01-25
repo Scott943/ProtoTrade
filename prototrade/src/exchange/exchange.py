@@ -77,7 +77,7 @@ class Exchange:
     def position_manager_decorator(func):
         def wrapper(self, *args):
             if not self._position_manager:
-                self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event, self._error_queue, self.exchange_num)
+                self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event, self._error_queue, self.exchange_num, self._subscribed_symbols)
             return func(self, *args)
         return wrapper
 

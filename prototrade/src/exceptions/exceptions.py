@@ -20,3 +20,12 @@ class MissingParameterException(Exception):
 
 class ExtraneousParameterException(Exception):
     pass
+
+class InvalidPriceException(Exception):
+    pass
+
+class InvalidVolumeException(Exception):
+    pass
+
+class ExchangeNotOpenException(Exception):
+    pass
