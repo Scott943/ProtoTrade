@@ -1,6 +1,5 @@
 import prototrade
-# help(prototrade)
-print("SXX")
+
 from multiprocessing import Process, Manager, Semaphore, current_process, Pool
 from multiprocessing.managers import BaseManager, NamespaceProxy
 from prototrade.ticker_streamer.alpaca_streamer import AlpacaDataStreamer

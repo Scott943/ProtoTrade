@@ -41,7 +41,7 @@ class PositionManager:
         self._open_orders_polling_thread = None
 
         self._rolling_pnl_list = []
-        self._rolling_position_dict = dict()
+        self._rolling_position_dict = []
 
         self._order_objects_lock = Lock() # have to acquire lock whenever accessing order_dict or open_orders
         self._rolling_pnl_list_lock = Lock() 
