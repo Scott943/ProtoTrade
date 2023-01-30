@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.5'
+VERSION = '0.0.6'
 DESCRIPTION = 'Parallelised Python framework for rapid prototyping of autotrading strategies'
 setup(
     name='prototrade',
@@ -12,7 +12,6 @@ setup(
     ),
     package_dir={"": "src"},
     license="MIT",
-    python_requires='>3.7',
     install_requires=[
     'matplotlib',
     'numpy',

@@ -1,14 +1,17 @@
+import prototrade
+# help(prototrade)
+print("SXX")
 from multiprocessing import Process, Manager, Semaphore, current_process, Pool
 from multiprocessing.managers import BaseManager, NamespaceProxy
-from ticker_streamer.alpaca_streamer import AlpacaDataStreamer
-from ticker_streamer.price_updater import PriceUpdater
-from models.strategy import Strategy
-from exchange.exchange import Exchange
-from ticker_streamer.subscription_manager import SubscriptionManager
+from prototrade.ticker_streamer.alpaca_streamer import AlpacaDataStreamer
+from prototrade.ticker_streamer.price_updater import PriceUpdater
+from prototrade.models.strategy import Strategy
+from prototrade.exchange.exchange import Exchange
+from prototrade.ticker_streamer.subscription_manager import SubscriptionManager
 from prototrade.error_processor import ErrorProcessor
-from models.error_event import ErrorEvent
+from prototrade.models.error_event import ErrorEvent
 import alpaca_trade_api as tradeapi
-from exceptions.exceptions import ExchangeNotOpenException
+from prototrade.exceptions.exceptions import ExchangeNotOpenException
 
 import sys
 import traceback

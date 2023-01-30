@@ -1,0 +1,7 @@
+README.md
+setup.py
+prototrade.egg-info/PKG-INFO
+prototrade.egg-info/SOURCES.txt
+prototrade.egg-info/dependency_links.txt
+prototrade.egg-info/requires.txt
+prototrade.egg-info/top_level.txt
