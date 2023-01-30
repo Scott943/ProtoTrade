@@ -19,8 +19,8 @@ from matplotlib import pyplot as plt
 def main():
 
     pt = ProtoTrade("alpaca",
-                    "AKFA6O7FWKEQ30SFPB9H",
-                    "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
+                    "[API_USERNAME]",
+                    "[API_KEY]",
                     "sip")
     # pt.register_strategy(rhys_strat)
     pt.register_strategy(test_strategy, 5, 8)
