@@ -4,32 +4,17 @@ A Python library for the rapid prototyping of autotrading strategies
 
 
 ## Documentation
-
-### Initialisation & Registering strategies
-
-``` 
-
-def main():
-   pt = ProtoTrade("alpaca", "API_USERNAME", "API_KEY", "sip") 
-
-   pt.register_strategy(test_strategy, 5, 8) # Name of function to call and parameters that function should take
-   pt.register_strategy(test_strategy_2, 6, 10, 11)  # Registering a second example function to run
-
-   pt.run_strategies() # Begins simulating execution of the two registered strategies
-
-main()
                     
-```
-                    
-### Example Strategies
+## Example Strategies
 
+### Boilerplate Strategy:
+Strategy that retrieves the price of Apple stock and places a market order every 3 seconds
 
 ```from prototrade.prototrade import ProtoTrade
 
 import time
 import random
 from matplotlib import pyplot as plt
-
 
 def main():
 
@@ -42,7 +27,6 @@ def main():
     # pt.register_strategy(test_strategy_2, 6, 10)
     pt.run_strategies()
 
-# Boilerplate strategy that retrieves the price of Apple stock and places a market order every 3 seconds
 # Example parameters to specific the parameters for the random.randrange function in the market order
 def test_strategy(exchange, lower_volume, upper_volume):
     print(f"Lower volume:{lower_volume} p2:{upper_volume}")
