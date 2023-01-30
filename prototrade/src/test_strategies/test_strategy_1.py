@@ -4,8 +4,6 @@ import random
 import matplotlib
 from matplotlib import pyplot as plt
 
-
-
 def main():
 
     pt = ProtoTrade("alpaca",
@@ -64,11 +62,6 @@ def rhys_strat(exchange):
             plot.set_xlabel("TimeStamp")
             plot.set_ylabel("Profit / Loss")
             plt.savefig("test2")
-        # exchange.cancel_order(cancel_id)
-        # print(f"CANCELLED {cancel_id}")
-        # for x in exchange.get_orders("AAPL").items():
-        #     print(x)
-        # time.sleep(5)
 
         print("PNL:", exchange.get_pnl())
 
