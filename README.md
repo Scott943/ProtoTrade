@@ -4,11 +4,17 @@ A Python library for the rapid prototyping of autotrading strategies
 
 
 ## Documentation
-                    
-## Example Strategies
 
-### Boilerplate Strategy:
-Strategy that retrieves the price of Apple stock and places a market order every 3 seconds
+### Installation
+
+1. Use `pip install prototrade -U` to install the latest version of the package
+2. Create a new python file (e.g. `script.py`) and paste in the boilerplate code below
+3. Use `python3 script.py` or `python script.py` to run the boilerplate strategy
+                    
+### Example Strategies
+
+
+- Strategy that retrieves the price of Apple stock and places a market order every 3 seconds
 
 ```
 from prototrade.virtual_exchange import VirtualExchange
