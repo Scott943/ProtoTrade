@@ -10,7 +10,8 @@ A Python library for the rapid prototyping of autotrading strategies
 ### Boilerplate Strategy:
 Strategy that retrieves the price of Apple stock and places a market order every 3 seconds
 
-```from prototrade.virtual_exchange import VirtualExchange
+```
+from prototrade.virtual_exchange import VirtualExchange
 import time
 import random
 from matplotlib import pyplot as plt
