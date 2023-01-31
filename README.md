@@ -4,25 +4,11 @@ A Python library for the rapid prototyping of autotrading strategies
 
 
 ## Documentation
-
-### Initialisation & Registering strategies
-
-``` 
-
-def main():
-   pt = ProtoTrade("alpaca", "API_USERNAME", "API_KEY", "sip") 
-
-   pt.register_strategy(test_strategy, 5, 8) # Name of function to call and parameters that function should take
-   pt.register_strategy(test_strategy_2, 6, 10, 11)  # Registering a second example function to run
-
-   pt.run_strategies() # Begins simulating execution of the two registered strategies
-
-main()
                     
-```
-                    
-### Example Strategies
+## Example Strategies
 
+### Boilerplate Strategy:
+Strategy that retrieves the price of Apple stock and places a market order every 3 seconds
 
 ```from prototrade.prototrade import ProtoTrade
 
@@ -30,19 +16,17 @@ import time
 import random
 from matplotlib import pyplot as plt
 
-
 def main():
 
     pt = ProtoTrade("alpaca",
-                    "AKFA6O7FWKEQ30SFPB9H",
-                    "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
+                    "[API_USERNAME]",
+                    "[API_KEY]",
                     "sip")
     # pt.register_strategy(rhys_strat)
     pt.register_strategy(test_strategy, 5, 8)
     # pt.register_strategy(test_strategy_2, 6, 10)
     pt.run_strategies()
 
-# Boilerplate strategy that retrieves the price of Apple stock and places a market order every 3 seconds
 # Example parameters to specific the parameters for the random.randrange function in the market order
 def test_strategy(exchange, lower_volume, upper_volume):
     print(f"Lower volume:{lower_volume} p2:{upper_volume}")
@@ -61,13 +45,6 @@ def test_strategy(exchange, lower_volume, upper_volume):
         
         print("Transactions:", exchange.get_transactions())
         print("Positions", exchange.get_positions())
-
-        pnl_pd = exchange.get_pnl_dataframe()
-        if not pnl_pd.empty:
-            plot = pnl_pd.plot(x="timestamp", y="pnl")
-            plot.set_xlabel("TimeStamp")
-            plot.set_ylabel("Profit / Loss")
-            plt.savefig("test2")
 
         print("---------------")
         time.sleep(3)
