@@ -74,7 +74,7 @@ class VirtualExchange:
         
         for strategy_num, strategy in enumerate(self._strategy_list):
             exchange = Exchange(
-                self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api)
+                self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api, self.save_data_location)
             logging.info("TEST")
             res = self._strategy_process_pool.apply_async(
                 run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))

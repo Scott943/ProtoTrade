@@ -21,7 +21,7 @@ from prototrade.models.error_event import ErrorEvent
 
 SYMBOL_REQUEST_TIMEOUT = 5
 class PositionManager:
-    def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event, error_queue, exchange_num, subscribed_symbols):
+    def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event, error_queue, exchange_num, subscribed_symbols, save_data_location):
         logging.info("L:DSJF:LDSFJL:DSFJ:LSF")
         self._order_books_dict = order_books_dict
         self._order_books_dict_semaphore = order_books_dict_semaphore
@@ -29,6 +29,7 @@ class PositionManager:
         self._error_queue = error_queue
         self._exchange_num = exchange_num
         self._subscribed_symbols = subscribed_symbols
+        self._save_data_location = save_data_location
 
         self._open_orders_polling_thread = None
         self._positions_map = defaultdict(int)

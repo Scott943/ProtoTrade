@@ -4,7 +4,6 @@ import random
 from matplotlib import pyplot as plt
 import pandas as pd
 
-
 def main():
     pt = VirtualExchange("alpaca",
                     "AKFA6O7FWKEQ30SFPB9H",
@@ -45,6 +44,6 @@ def test_strategy(exchange, lower_volume, upper_volume):
         
     print("Strategy 0 FINISHED")
 
-# Need this on windows to avoid repeatedly spawning processes
+# Need this on Windows machines to avoid repeatedly spawning processes
 if __name__ == '__main__': 
     main()
