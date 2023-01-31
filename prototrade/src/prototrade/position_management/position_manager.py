@@ -13,7 +13,6 @@ from copy import deepcopy
 from models.transaction import Transaction
 import time
 from collections import defaultdict
-import pandas as pd
 from threading import Lock
 import datetime
 import numpy as np
@@ -41,7 +40,7 @@ class PositionManager:
         self._open_orders_polling_thread = None
 
         self._rolling_pnl_list = []
-        self._rolling_position_dict = []
+        self._rolling_position_dict = defaultdict(list)
 
         self._order_objects_lock = Lock() # have to acquire lock whenever accessing order_dict or open_orders
         self._rolling_pnl_list_lock = Lock() 
@@ -322,7 +321,7 @@ class PositionManager:
                 self._rolling_pnl_list.append([timestamp, pnl])
                 self._rolling_pnl_list_lock.release()
                 self._rolling_position_dict_lock.acquire()
-                self._rolling_position_dict.append([timestamp, *positions])
+                self._rolling_position_dict[symbol].append([timestamp, positions[symbol]])
                 self._rolling_position_dict_lock.release()
                 last_pnl_time = time.time()
 
@@ -332,17 +331,20 @@ class PositionManager:
   
         logging.info("Open order polling thread finished")
 
-    def get_pnl_dataframe(self):
+    def get_pnl_over_time(self):
         self._rolling_pnl_list_lock.acquire()
-        pnl_df = pd.DataFrame(self._rolling_pnl_list, columns = ['timestamp', 'pnl'])
+        pnl = deepcopy(self._rolling_pnl_list)
         self._rolling_pnl_list_lock.release()
-        return pnl_df
+        return pnl
 
-    def get_positions_data(self):
+    def get_positions_over_time(self, symbol = None):
         self._rolling_position_dict_lock.acquire()
-        pnl_df = pd.DataFrame(self._rolling_position_dict, columns = ['timestamp', 'dict'])
+        if symbol:
+            positions = deepcopy(self._rolling_position_dict[symbol])
+        else:
+            positions = deepcopy(self._rolling_position_dict)
         self._rolling_position_dict_lock.release()
-        return pnl_df
+        return positions
 
     def _register_new_transaction(self, symbol, order_side, order_type, volume, price, time):
         transaction = Transaction(symbol, order_side, order_type, volume, price, time)
@@ -414,7 +416,6 @@ class PositionManager:
         # for each current position: if position_vol > 0: best_ask * position_vol, if position_vol < 0: best_bid * position_vol
         
         pnl = self._transaction_pnl # pnl acquired by the transaction history
-        print(f"Transaction pnl: {pnl}")
         # atomic so doesn't need a lock
 
         self._order_books_dict_semaphore.acquire()

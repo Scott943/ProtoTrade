@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.7'
+VERSION = '0.0.8'
 DESCRIPTION = 'Parallelised Python framework for rapid prototyping of autotrading strategies'
 setup(
     name='prototrade',
@@ -16,7 +16,6 @@ setup(
     'matplotlib',
     'numpy',
     'alpaca_trade_api',
-    'pandas',
     ]
     
 )

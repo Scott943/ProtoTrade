@@ -2,7 +2,6 @@ README.md
 setup.py
 src/prototrade/__init__.py
 src/prototrade/__main__.py
-src/prototrade/error_processor.py
 src/prototrade/virtual_exchange.py
 src/prototrade.egg-info/PKG-INFO
 src/prototrade.egg-info/SOURCES.txt
@@ -10,9 +9,12 @@ src/prototrade.egg-info/dependency_links.txt
 src/prototrade.egg-info/requires.txt
 src/prototrade.egg-info/top_level.txt
 src/prototrade/exceptions/__init__.py
+src/prototrade/exceptions/error_processor.py
 src/prototrade/exceptions/exceptions.py
 src/prototrade/exchange/__init__.py
 src/prototrade/exchange/exchange.py
+src/prototrade/file_manager/__init__.py
+src/prototrade/file_manager/file_manager.py
 src/prototrade/models/__init__.py
 src/prototrade/models/books.py
 src/prototrade/models/dual_heap.py

@@ -1,16 +1,16 @@
 
 
-from multiprocessing import Process, Manager, Semaphore, current_process, Pool
+from multiprocessing import Manager, Pool
 from multiprocessing.managers import BaseManager, NamespaceProxy
 from prototrade.ticker_streamer.alpaca_streamer import AlpacaDataStreamer
 from prototrade.ticker_streamer.price_updater import PriceUpdater
 from prototrade.models.strategy import Strategy
 from prototrade.exchange.exchange import Exchange
 from prototrade.ticker_streamer.subscription_manager import SubscriptionManager
-from prototrade.error_processor import ErrorProcessor
+from prototrade.exceptions.error_processor import ErrorProcessor
 from prototrade.models.error_event import ErrorEvent
-import alpaca_trade_api as tradeapi
 from prototrade.exceptions.exceptions import ExchangeNotOpenException
+from pathlib import Path
 
 import sys
 import traceback
@@ -27,12 +27,15 @@ logging.basicConfig(level=logging.INFO)
 class VirtualExchange:
 
     # this should be initialised with alpaca credentials and exchange. then register_strategy sued to calculate the num_strategiegs
-    def __init__(self, streamer_name, streamer_username, streamer_key, exchange_name="iex"):
+    def __init__(self, streamer_name, streamer_username, streamer_key, exchange_name="iex", save_data_location = None):
         signal.signal(signal.SIGINT, self._exit_handler)
         self._streamer_name = streamer_name
         self._streamer_username = streamer_username
         self._streamer_key = streamer_key
         self._exchange_name = exchange_name
+
+        if not save_data_location:
+            self.save_data_location =  Path('.')
 
         self._pre_setup_terminate = False
         self._setup_finished = False
