@@ -1,6 +1,6 @@
 # ProtoTrade
 
-A Python library for the rapid prototyping of autotrading strategies
+A parallelised Python library for the rapid prototyping of autotrading strategies
 
 
 ## Documentation
