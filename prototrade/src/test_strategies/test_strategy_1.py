@@ -1,5 +1,3 @@
-
-
 from prototrade.prototrade import ProtoTrade
 
 import time
