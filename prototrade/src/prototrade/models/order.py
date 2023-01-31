@@ -1,4 +1,4 @@
-from exceptions.exceptions import InvalidOrderSideException
+from prototrade.exceptions.exceptions import InvalidOrderSideException
 
 class Order:
    def __init__(self, order_id, symbol, order_side, order_type, volume, price):

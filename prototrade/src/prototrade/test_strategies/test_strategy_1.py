@@ -45,4 +45,5 @@ def test_strategy(exchange, lower_volume, upper_volume):
         
     print("Strategy 0 FINISHED")
 
-main()
+if __name__ == '__main__': 
+    main()

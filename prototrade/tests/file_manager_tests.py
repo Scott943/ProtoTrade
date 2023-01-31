@@ -11,11 +11,10 @@ class TestFileManager(unittest.TestCase):
    def setUp(self):
       self.file_manager = FileManager(Path(__file__).parent.resolve()/"sample_dir", self.NUM_STRATEGIES)
       p = Path(self.file_manager.root_path)
-
-      rm_tree(p)
-
+      
+      # Delete everything in sampel dir
       for x in p.iterdir():
-         print("x", x)
+         rm_tree(x)
 
       (p/"Run_0").mkdir(parents=True, exist_ok=True)
       (p/"Run_5").mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.8'
+VERSION = '0.0.10'
 DESCRIPTION = 'Parallelised Python framework for rapid prototyping of autotrading strategies'
 setup(
     name='prototrade',

@@ -1,15 +1,15 @@
 import copy
-from models.subscription_event import SubscriptionEvent, SubscribeType
+from prototrade.models.subscription_event import SubscriptionEvent, SubscribeType
 import time
-from exceptions.exceptions import UnavailableSymbolException, SubscriptionException
+from prototrade.exceptions.exceptions import UnavailableSymbolException, SubscriptionException
 import logging
-from position_management.position_manager import PositionManager
+from prototrade.position_management.position_manager import PositionManager
 from copy import deepcopy
 
 SYMBOL_REQUEST_TIMEOUT = 8
 class Exchange:
 
-    def __init__(self, order_books_dict, order_books_dict_semaphore, subscription_queue, error_queue, exchange_num, stop_event, shared_rest_api, save_data_location):
+    def __init__(self, order_books_dict, order_books_dict_semaphore, subscription_queue, error_queue, exchange_num, stop_event, shared_rest_api):
         self._order_books_dict = order_books_dict
         self._order_books_dict_semaphore = order_books_dict_semaphore
         self._subscription_queue = subscription_queue
@@ -17,7 +17,6 @@ class Exchange:
         self.exchange_num = exchange_num
         self._stop_event = stop_event
         self.historical = shared_rest_api
-        self._save_data_location = save_data_location
 
         self._position_manager = None
         self._subscribed_symbols = set()
@@ -78,7 +77,8 @@ class Exchange:
     def position_manager_decorator(func):
         def wrapper(self, *args):
             if not self._position_manager:
-                self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event, self._error_queue, self.exchange_num, self._subscribed_symbols, self._save_data_location)
+                logging.info("L:DSJF:LDSFJL:DSFJ:LSF")
+                self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event, self._error_queue, self.exchange_num, self._subscribed_symbols)
             return func(self, *args)
         return wrapper
 
@@ -119,7 +119,11 @@ class Exchange:
         return self._position_manager.get_pnl(*args)
 
     @position_manager_decorator
-    def get_pnl_dataframe(self, *args):
-        return self._position_manager.get_pnl_dataframe(*args)
+    def get_pnl_over_time(self, *args):
+        return self._position_manager.get_pnl_over_time(*args)
+
+    @position_manager_decorator
+    def get_positions_over_time(self, *args):
+        return self._position_manager.get_positions_over_time(*args)
 
     

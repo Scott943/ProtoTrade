@@ -1,5 +1,5 @@
 
-
+import multiprocessing
 from multiprocessing import Manager, Pool
 from multiprocessing.managers import BaseManager, NamespaceProxy
 from prototrade.ticker_streamer.alpaca_streamer import AlpacaDataStreamer
@@ -59,8 +59,10 @@ class VirtualExchange:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         # SIGINT ignored to set child processes so wrap pool creation in a try except
+
+        # Windows only supports spawning processes (instead of forking), so design design has been taking to always spawn regardless of operating system
         try:
-            self._strategy_process_pool = Pool(
+            self._strategy_process_pool = multiprocessing.get_context('spawn').Pool(
                 self.num_strategies)  # USE SPAWN HERE? Check bloat
         except KeyboardInterrupt:
             self.stop()
@@ -69,8 +71,7 @@ class VirtualExchange:
         signal.signal(signal.SIGINT, self._exit_handler)
 
         logging.info("Creating strategy processes")
-
-        # start readers
+        
         for strategy_num, strategy in enumerate(self._strategy_list):
             exchange = Exchange(
                 self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api)

@@ -1,5 +1,5 @@
 from threading import Thread
-from models.error_event import ErrorEvent
+from prototrade.models.error_event import ErrorEvent
 import logging
 
 class ErrorProcessor:

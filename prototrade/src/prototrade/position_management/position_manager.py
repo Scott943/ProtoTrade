@@ -4,24 +4,25 @@
 import logging
 import heapq
 import traceback
-from models.dual_heap import DualHeap
-from exceptions.exceptions import InvalidOrderTypeException, InvalidOrderSideException, UnknownOrderIdException, MissingParameterException, ExtraneousParameterException, UnavailableSymbolException, InvalidPriceException, InvalidVolumeException
-from models.order import Order
+from prototrade.models.dual_heap import DualHeap
+from prototrade.exceptions.exceptions import InvalidOrderTypeException, InvalidOrderSideException, UnknownOrderIdException, MissingParameterException, ExtraneousParameterException, UnavailableSymbolException, InvalidPriceException, InvalidVolumeException
+from prototrade.models.order import Order
 import math
 from threading import Thread
 from copy import deepcopy
-from models.transaction import Transaction
+from prototrade.models.transaction import Transaction
 import time
 from collections import defaultdict
 from threading import Lock
 import datetime
 import numpy as np
 
-from models.error_event import ErrorEvent
+from prototrade.models.error_event import ErrorEvent
 
 SYMBOL_REQUEST_TIMEOUT = 5
 class PositionManager:
     def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event, error_queue, exchange_num, subscribed_symbols):
+        logging.info("L:DSJF:LDSFJL:DSFJ:LSF")
         self._order_books_dict = order_books_dict
         self._order_books_dict_semaphore = order_books_dict_semaphore
         self._stop_event = stop_event
@@ -48,6 +49,7 @@ class PositionManager:
         self._transaction_pnl_lock = Lock()
         self._transaction_history_lock = Lock()
         self._rolling_position_dict_lock = Lock()
+        
 
     def create_order(self, symbol, order_side, order_type, volume, price = None):
         # FOC: check if order can be executed immediately (don't add to open orders)

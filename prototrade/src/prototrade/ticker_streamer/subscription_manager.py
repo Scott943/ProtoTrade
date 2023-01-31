@@ -1,8 +1,8 @@
 from collections import defaultdict
-from models.subscription_event import SubscribeType
+from prototrade.models.subscription_event import SubscribeType
 from threading import Thread
 import logging
-from exceptions.exceptions import UnavailableSymbolException
+from prototrade.exceptions.exceptions import UnavailableSymbolException
 
 class SubscriptionManager:
 
