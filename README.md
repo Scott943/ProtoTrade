@@ -26,7 +26,7 @@ def main():
     pt.run_strategies()
 
 # Boilerplate strategy that retrieves the price of Apple stock and places a market order every 3 seconds
-# Example parameters to specific the parameters for the random.randrange function in the market order
+# Example parameters to to specify the arguments for the random.randrange function in the market order
 def test_strategy(exchange, lower_volume, upper_volume):
     print(f"Lower volume:{lower_volume} p2:{upper_volume}")
 
@@ -58,5 +58,6 @@ def test_strategy(exchange, lower_volume, upper_volume):
     print("Strategy 0 FINISHED")
 
 main()
+
 
 ```
