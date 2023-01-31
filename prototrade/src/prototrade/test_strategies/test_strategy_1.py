@@ -1,4 +1,7 @@
-from prototrade.prototrade import ProtoTrade
+
+
+from prototrade.virtual_exchange import VirtualExchange
+# help(prototrade)
 
 import time
 import random
@@ -7,7 +10,7 @@ from matplotlib import pyplot as plt
 
 def main():
 
-    pt = ProtoTrade("alpaca",
+    pt = VirtualExchange("alpaca",
                     "AKFA6O7FWKEQ30SFPB9H",
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
                     "sip")

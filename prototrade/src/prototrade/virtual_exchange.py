@@ -1,4 +1,4 @@
-import prototrade
+
 
 from multiprocessing import Process, Manager, Semaphore, current_process, Pool
 from multiprocessing.managers import BaseManager, NamespaceProxy
@@ -24,7 +24,7 @@ SENTINEL = None
 
 logging.basicConfig(level=logging.INFO)
 
-class ProtoTrade:
+class VirtualExchange:
 
     # this should be initialised with alpaca credentials and exchange. then register_strategy sued to calculate the num_strategiegs
     def __init__(self, streamer_name, streamer_username, streamer_key, exchange_name="iex"):
