@@ -329,8 +329,6 @@ class PositionManager:
                 last_pnl_time = time.time()
 
             time.sleep(0.3)
-
-            logging.info("Checking executable")
   
         logging.info("Open order polling thread finished")
 
@@ -434,9 +432,6 @@ class PositionManager:
         positions = self._positions_map.items()
         self._positions_map_lock.release()
         for symbol, amount in positions:
-            # if symbol not in order_books_snapshot:
-            #     raise UnavailableSymbolException(f"Ensure symbol {symbol} is subscribed to")
-            print(f"Adding {symbol} {order_books_snapshot[symbol].ask.price} {amount}")
             if amount > 0:
                 pnl += order_books_snapshot[symbol].bid.price * amount # the money obtained if all shares were sold at best bid price
             elif amount < 0:

@@ -87,6 +87,16 @@ class VirtualExchange:
         self.stop()
 
     def stop(self, should_exit=True):
+        """
+    Return a list of random ingredients as strings.
+
+    :param kind: Optional "kind" of ingredients.
+    :type kind: list[str] or None
+    :raise lumache.InvalidKindError: If the kind is invalid.
+    :return: The ingredients list.
+    :rtype: list[str]
+
+    """
         logging.info("Stopping Program")
         self._stop_event.set()  # Inform child processes to stop
         # logging.info(self._error_processor.exception)
