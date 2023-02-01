@@ -1,4 +1,6 @@
 
+
+
 import multiprocessing
 from multiprocessing import Manager, Pool
 from multiprocessing.managers import BaseManager, NamespaceProxy
@@ -25,9 +27,29 @@ SENTINEL = None
 logging.basicConfig(level=logging.INFO)
 
 class VirtualExchange:
+    """_summary_
+
+    :raises ExchangeNotOpenException: _description_
+    :return: _description_
+    :rtype: _type_
+    """
 
     # this should be initialised with alpaca credentials and exchange. then register_strategy sued to calculate the num_strategiegs
     def __init__(self, streamer_name, streamer_username, streamer_key, exchange_name="iex", save_data_location = None):
+        """_summary_
+
+        :param streamer_name: _description_
+        :type streamer_name: _type_
+        :param streamer_username: _description_
+        :type streamer_username: _type_
+        :param streamer_key: _description_
+        :type streamer_key: _type_
+        :param exchange_name: _description_, defaults to "iex"
+        :type exchange_name: str, optional
+        :param save_data_location: _description_, defaults to None
+        :type save_data_location: _type_, optional
+        """
+        
         signal.signal(signal.SIGINT, self._exit_handler)
         self._streamer_name = streamer_name
         self._streamer_username = streamer_username
@@ -87,16 +109,6 @@ class VirtualExchange:
         self.stop()
 
     def stop(self, should_exit=True):
-        """
-    Return a list of random ingredients as strings.
-
-    :param kind: Optional "kind" of ingredients.
-    :type kind: list[str] or None
-    :raise lumache.InvalidKindError: If the kind is invalid.
-    :return: The ingredients list.
-    :rtype: list[str]
-
-    """
         logging.info("Stopping Program")
         self._stop_event.set()  # Inform child processes to stop
         # logging.info(self._error_processor.exception)
@@ -242,3 +254,4 @@ class HistoricalAPIProxy(NamespaceProxy):
     # We need to expose the same __dunder__ methods as NamespaceProxy,
     # in addition to the b method.
     _exposed_ = ('__getattribute__', '__setattr__', '__delattr__', 'api')
+
