@@ -5,6 +5,9 @@ A parallelised Python library for the rapid prototyping of autotrading strategie
 
 ## Documentation
 
+Complete documentation can be found at: https://scott943.github.io/Prototrade_Docs/
+
+
 ### Installation
 
 1. Use `pip install prototrade -U` to install the latest version of the package
