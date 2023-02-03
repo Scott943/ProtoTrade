@@ -223,7 +223,7 @@ class PositionManager:
             # Only return orders for requested symbol
             ret = {k:v for k,v in self._order_dict.items() if v.symbol == symbol} 
         else:
-            ret = self._order_objects_lock.acquire()
+            ret = deepcopy(self._order_dict)
 
         self._order_objects_lock.release()
         return ret 

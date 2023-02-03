@@ -1,4 +1,5 @@
 README.md
+README.rst
 setup.py
 src/prototrade/__init__.py
 src/prototrade/__main__.py
@@ -16,10 +17,10 @@ src/prototrade/exchange/exchange.py
 src/prototrade/file_manager/__init__.py
 src/prototrade/file_manager/file_manager.py
 src/prototrade/models/__init__.py
-src/prototrade/models/books.py
 src/prototrade/models/dual_heap.py
 src/prototrade/models/error_event.py
 src/prototrade/models/order.py
+src/prototrade/models/quotes.py
 src/prototrade/models/strategy.py
 src/prototrade/models/subscription_event.py
 src/prototrade/models/transaction.py

@@ -1,6 +1,6 @@
 import alpaca_trade_api as tradeapi
 import threading
-from prototrade.models.books import Quote
+from prototrade.models.quotes import Quote
 import time
 import logging
 
