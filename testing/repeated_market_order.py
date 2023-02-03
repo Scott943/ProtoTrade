@@ -19,8 +19,8 @@ def test_strategy(exchange, lower_volume, upper_volume):
 
     exchange.subscribe("AAPL") # Subscribe to live data from Apple
     while exchange.is_running():
-        order_books = exchange.get_subscribed_books()
-        aapl_price = order_books["AAPL"]
+        quotes = exchange.get_subscribed_quotes()
+        aapl_price = quotes["AAPL"]
         print(f"AAPL BID PRICE: {aapl_price.bid}")
         print(f"AAPL ASK PRICE: {aapl_price.ask}")
         

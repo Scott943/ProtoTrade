@@ -37,7 +37,7 @@ class Exchange:
         e.g. to access latest volume at ask price for AAPL, use exchange.get_subscribed_quotes()["AAPL"].ask.volume
 
         :return: A dictionary where the key is a symbol and the value is the corresponding quote object.
-        :rtype: ``dict``(``str`` -> :py:class:`Quote<prototrade.models.quotes.Quote>`)
+        :rtype: *dict*\ (\ *str* -> :py:class:`Quote<prototrade.models.quotes.Quote>`)
         """
         quote_dict = {}
         self._order_books_dict_semaphore.acquire()
@@ -74,7 +74,7 @@ class Exchange:
         """Returns a set symbols that the strategy is currently subscribed to
 
         :return: set of symbols that the strategy is currently subscribed to
-        :rtype: ``set``
+        :rtype: *set*
         """
         return deepcopy(self._subscribed_symbols)
 
@@ -83,7 +83,7 @@ class Exchange:
         Once a symbol is subscribed to, market data for that symbol will be avaiable using the get_subscribed_quotes() member function
 
         :param symbol: The symbol to subscribe to
-        :type symbol: ``str``
+        :type symbol: *str*
         """
         self._subscription_queue.put(
             SubscriptionEvent(symbol, SubscribeType.SUBSCRIBE, self.exchange_num))
@@ -93,7 +93,7 @@ class Exchange:
         """Unsubscribes from a symbol. Data for the specified symbol will no longer be subscribed to.
 
         :param symbol: The symbol to unsubscribe from
-        :type symbol: ``str``
+        :type symbol: *str*
         :raises SubscriptionException: If the strategy is not currently subscribed to the specified symbol, this exception will be thrown
         """
         if symbol in self._subscribed_symbols:
@@ -110,7 +110,7 @@ class Exchange:
         operations after their strategy has finished execution.
 
         :return: A boolean value representing whether the framework is still running
-        :rtype: ``bool``
+        :rtype: *bool*
         """
         return not self._stop_event.is_set()
 
@@ -128,21 +128,21 @@ class Exchange:
 
     @position_manager_decorator
     def create_order(self, symbol, order_side, order_type, volume, price = None):
-        """Submit an order to the framework. When a ``'market'`` or ``'limit'`` order is submitted, the framework will repeatedly check whether it can be executed.
-        When a ``'fok'`` (Fill-Or-Kill) order is submitted, the framework will check whether it can be executed once. If it cannot be executed at the specified price, the order will be cancelled.
+        """Submit an order to the framework. When a *'market'* or *'limit'* order is submitted, the framework will repeatedly check whether it can be executed.
+        When a *'fok'* (Fill-Or-Kill) order is submitted, the framework will check whether it can be executed once. If it cannot be executed at the specified price, the order will be cancelled.
 
         :param symbol: The symbol to place the order for
-        :type symbol: ``str``
-        :param order_side: The side of the order book to place the order in. Either ``'bid'`` or ``'ask'``.
-        :type order_side: ``str``
-        :param order_type: The type of order to submit. One of ``'market'``, ``'limit'``, ``'fok'``. If ``'limit'`` or ``'fok'`` specified, then the price parameter must also be specified
-        :type order_type: ``str``
+        :type symbol: *str*
+        :param order_side: The side of the order book to place the order in. Either *'bid'* or *'ask'*.
+        :type order_side: *str*
+        :param order_type: The type of order to submit. One of *'market'*, *'limit'*, *'fok'*. If *'limit'* or *'fok'* specified, then the price parameter must also be specified
+        :type order_type: *str*
         :param volume: The volume of the order. Must be > 0
-        :type volume: ``int``
-        :param price: The limit price / Fill-Or-Kill price, defaults to ``None``
-        :type price: ``float`` | ``int``, optional
+        :type volume: *int*
+        :param price: The limit price / Fill-Or-Kill price, defaults to *None*
+        :type price: *float* | *int*, optional
         :return: The ID of the order created
-        :rtype: ``int``
+        :rtype: *int*
         """
         return self._position_manager.create_order(symbol, order_side, order_type, volume, price)
 
@@ -151,10 +151,10 @@ class Exchange:
         """Retrive the open orders for a strategy. If the symbol argument is specified, then only retrieves orders for that particular symbol.
         Otherwise, all open orders for the strategy are returned.
 
-        :param symbol: The symbol to retrieve open orders for, defaults to ``None``
-        :type symbol: ``str``, optional
-        :return:  dictionary where the key is the order_id and the value is the corresponding :py:class:`Order<prototrade.models.order.Order>` object
-        :rtype: ``dict``(``int`` -> :py:class:`Order<prototrade.models.order.Order>`)
+        :param symbol: The symbol to retrieve open orders for, defaults to *None*
+        :type symbol: *str*, optional
+        :return: The dictionary where the key is the order_id and the value is the corresponding :py:class:`Order<prototrade.models.order.Order>` object
+        :rtype: *dict*\ (\ *int* -> :py:class:`Order<prototrade.models.order.Order>`)
         """
         return self._position_manager.get_orders(symbol)
 
@@ -164,8 +164,8 @@ class Exchange:
         In the framework implementation, this reads the top of bid heap for the particular symbol.
 
         :param symbol: symbol
-        :type symbol: ``str``
-        :return: :py:class:`Order<prototrade.models.order.Order>` object corresponding to the best bid for the calling strategy
+        :type symbol: *str*
+        :return: A :py:class:`Order<prototrade.models.order.Order>` object corresponding to the best bid for the calling strategy
         :rtype: :py:class:`Order<prototrade.models.order.Order>`
         """
         return self._position_manager.get_strategy_best_bid(symbol)
@@ -176,8 +176,8 @@ class Exchange:
         In the framework implementation, this reads the top of ask heap for the particular symbol.
 
         :param symbol: symbol
-        :type symbol: ``str``
-        :return: :py:class:`Order<prototrade.models.order.Order>` object corresponding to the best ask for the calling strategy
+        :type symbol: *str*
+        :return: A :py:class:`Order<prototrade.models.order.Order>` object corresponding to the best ask for the calling strategy
         :rtype: :py:class:`Order<prototrade.models.order.Order>`
         """
         return self._position_manager.get_strategy_best_ask(symbol)
@@ -187,9 +187,9 @@ class Exchange:
         """Removes the order with order_id from the list of open orders.
 
         :param order_id: The id of the order to remove
-        :type order_id: ``int``
-        :param volume_requested: The amount of the order to cancel (allows for partial cancellation). If parameter not specified, the entire order will be cancelled, defaults to ``None``
-        :type volume_requested: ``int``, optional
+        :type order_id: *int*
+        :param volume_requested: The amount of the order to cancel (allows for partial cancellation). If parameter not specified, the entire order will be cancelled, defaults to *None*
+        :type volume_requested: *int*\ , optional
         """
         self._position_manager.cancel_order(order_id, volume_requested)
 
@@ -197,27 +197,51 @@ class Exchange:
     def get_positions(self, symbol_filter = None):
         """Retrieve a dictionary of the strategy's current positions held. Here, a negative value in the dictionary implies a short position is being held.
 
-        :param symbol_filter: The symbol to retrieve positions data for. If not symbol specified, retrieves positions for all stocks held, defaults to ``None``
-        :type symbol_filter: ``int``, optional
-        :return: a dictionary where the key is a symbol and the value is the corresponding number of lots held
-        :rtype: ``dict``(``str``->``int``)
+        :param symbol_filter: The symbol to retrieve positions data for. If not symbol specified, retrieves positions for all stocks held, defaults to *None*
+        :type symbol_filter: *int*, optional
+        :return: A dictionary where the key is a symbol and the value is the corresponding number of lots held
+        :rtype: *dict*\ (\ *str* -> *int*)
         """
         return self._position_manager.get_positions(symbol_filter)
 
     @position_manager_decorator
     def get_transactions(self, symbol_filter = None):
+        """Get a list of all previous transactions made (for a particular symbol)
+
+        :param symbol_filter: If specified, returns transactions for a particular symbol. Otherwise returns all transactions in chronological order, defaults to *None*
+        :type symbol_filter: *str*, optional
+        :return: A list of transactions
+        :rtype: *list*\ (:py:class:`Transaction<prototrade.models.transaction.Transaction>`)
+        """
         return self._position_manager.get_transactions(symbol_filter)
 
     @position_manager_decorator
     def get_pnl(self):
+        """Retrieves the Profit-And-Loss for the calling strategy.
+
+        :return: PnL
+        :rtype: *int*
+        """
         return self._position_manager.get_pnl()
 
     @position_manager_decorator
     def get_pnl_over_time(self):
+        """Retrieves the PnL for a strategy over several time-intervals (since the strategy started)
+
+        :return: A list of (*timestamp*, *int*) where each entry indicated the PnL at the specified timestamp
+        :rtype: *list*\ (\ *tuple*\ (\ *timestamp*\ , \ *int*\ ))
+        """
         return self._position_manager.get_pnl_over_time()
 
     @position_manager_decorator
     def get_positions_over_time(self, symbol = None):
+        """Retrieves the positions dictionary over several time-intervals (since the strategy started)
+
+        :param symbol: The symbol to return positions over time for. If not specified, returns a dictionary of every symbol, defaults to *None*
+        :type symbol: *str*, optional
+        :return: a dictionary where the key is a symbol and the value is a list of positions over time
+        :rtype: *dict*\ (\ *str*\ , *list*\ (\ *tuple*\ (\ *timestamp*\ , *int*\ )))
+        """
         return self._position_manager.get_positions_over_time(symbol)
 
     
