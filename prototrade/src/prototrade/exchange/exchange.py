@@ -12,11 +12,13 @@ class Exchange:
     """
     To interact with the framework, the user calls functions in the Exchange object.
     Allows user to place orders, retrieve information on transactions/positions, (un)subscribe to stock data, and retrieve the latest prices for subscribed stocks.
+    Within the :py:class:`VirtualExchange <prototrade.virtual_exchange.VirtualExchange>` object, Exchange objects are created for every strategy function that has been registered.
+    Then, each Exchange object is passed as the first parameter to the corresponding registered strategy function.
     """
 
     def __init__(self, order_books_dict, order_books_dict_semaphore, subscription_queue, error_queue, exchange_num, stop_event, shared_rest_api, save_data_location):
         """
-        Initalises an exchange object (initialisation performed automatically in the VirutalExchange class)
+        Initalises an exchange object (initialisation performed automatically in the :py:class:`VirtualExchange <prototrade.virtual_exchange.VirtualExchange>` class)
         """
         
         self._order_books_dict = order_books_dict
