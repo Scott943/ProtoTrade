@@ -1,4 +1,6 @@
 class HalfQuote:
+   """A class that represents one half of a :py:class:`Quote<prototrade.models.quotes.Quote>` object.
+   """
    def __init__(self, volume, price, order_side):
       self._volume = volume
       self._price = price
@@ -27,6 +29,9 @@ class HalfQuote:
 
 # Our order book is composed of two half books (one for the bid and another for the ask)
 class Quote:
+   """A class representing a quote for a stock at a given timestamp. Consists of two :py:class:`HalfQuote<prototrade.models.quotes.HalfQuote>` objects (one for the bid side
+   and one for the ask side) as well as the timestamp.
+   """
    def __init__(self, bid_volume, bid_price, ask_volume, ask_price, timestamp):
       self._bid = HalfQuote(bid_volume, bid_price, "bid")
       self._ask = HalfQuote(ask_volume, ask_price, "ask")
@@ -34,13 +39,13 @@ class Quote:
 
    @property
    def bid(self):
-      """Half Quote object corresponding to the bid side of the Quote
+      """:py:class:`HalfQuote<prototrade.models.quotes.HalfQuote>` object corresponding to the bid side of the Quote
       """
       return self._bid
 
    @property
    def ask(self):
-      """Half Quote object corresponding to the ask side of the Quote
+      """:py:class:`HalfQuote<prototrade.models.quotes.HalfQuote>` object corresponding to the ask side of the Quote
       """
       return self._ask
 

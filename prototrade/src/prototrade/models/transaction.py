@@ -1,6 +1,8 @@
 
 
 class Transaction:
+   """A class that represents a transaction that has occurred on a particular stock.
+   """
    def __init__(self, symbol, order_side, order_type, volume, price, timestamp):
       self._symbol = symbol
       self._order_side = order_side

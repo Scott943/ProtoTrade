@@ -15,7 +15,10 @@ class FileManager:
       self.strategy_path.mkdir(parents=True, exist_ok=False)
 
       for i in range(self.num_strategies):
-         (self.strategy_path/f"Strategy_{i}").touch()
+         (self.strategy_path/f"Strategy_{i}").mkdir(parents=True, exist_ok=False)
+         (self.strategy_path/f"Strategy_{i}/Transactions.txt").touch()
+         (self.strategy_path/f"Strategy_{i}/PnL.txt").touch()
+         # create strategy_i/transactions
       
 
    def get_run_index(self):

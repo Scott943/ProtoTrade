@@ -27,8 +27,6 @@ src/prototrade/models/transaction.py
 src/prototrade/position_management/__init__.py
 src/prototrade/position_management/position_manager.py
 src/prototrade/position_management/test_puller.py
-src/prototrade/test_strategies/__init__.py
-src/prototrade/test_strategies/test_strategy_1.py
 src/prototrade/ticker_streamer/__init__.py
 src/prototrade/ticker_streamer/alpaca_streamer.py
 src/prototrade/ticker_streamer/price_updater.py

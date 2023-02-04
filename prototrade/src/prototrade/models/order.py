@@ -1,6 +1,8 @@
 from prototrade.exceptions.exceptions import InvalidOrderSideException
 
 class Order:
+   """A class that represents an order that has not been fufilled yet (i.e. an open order).
+   """
    def __init__(self, order_id, symbol, order_side, order_type, volume, price):
       self._order_id = order_id
       self._symbol = symbol

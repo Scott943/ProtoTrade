@@ -1,6 +1,3 @@
-
-
-
 import multiprocessing
 from multiprocessing import Manager, Pool
 from multiprocessing.managers import BaseManager, NamespaceProxy
@@ -14,40 +11,33 @@ from prototrade.models.error_event import ErrorEvent
 from prototrade.exceptions.exceptions import ExchangeNotOpenException
 from pathlib import Path
 
-import sys
 import traceback
 import signal
-import time
 import logging
-
-TEST_SYMBOLS = ["AAPL", "GOOG", "MSFT"]
 
 SENTINEL = None
 
 logging.basicConfig(level=logging.INFO)
 
 class VirtualExchange:
-    """_summary_
+    """The master class used for initialising & running the framework. Handles allocating processes to each of the registered strategies.
 
-    :raises ExchangeNotOpenException: _description_
-    :return: _description_
-    :rtype: _type_
+    :raises ExchangeNotOpenException: If the exchange is currently closed, this error is raised
     """
-
     # this should be initialised with alpaca credentials and exchange. then register_strategy sued to calculate the num_strategiegs
     def __init__(self, streamer_name, streamer_username, streamer_key, exchange_name="iex", save_data_location = None):
-        """_summary_
+        """Initalise the virtual exchange. This should be done inside a main() function within the user's program.
 
-        :param streamer_name: _description_
-        :type streamer_name: _type_
-        :param streamer_username: _description_
-        :type streamer_username: _type_
-        :param streamer_key: _description_
-        :type streamer_key: _type_
-        :param exchange_name: _description_, defaults to "iex"
+        :param streamer_name: The name of the streamer to use. Recommended: ``'alpaca'``
+        :type streamer_name: str
+        :param streamer_username: The API usesrname
+        :type streamer_username: str
+        :param streamer_key: The corresponding API key
+        :type streamer_key: str
+        :param exchange_name: The exchange to use. For alpaca, this can be ``sip`` (all US exchanges - paid subscription only) or ``iex``, defaults to "iex"
         :type exchange_name: str, optional
-        :param save_data_location: _description_, defaults to None
-        :type save_data_location: _type_, optional
+        :param save_data_location: The relative file location (from the user strategy script) to save data about each run, defaults to None
+        :type save_data_location: str, optional
         """
         
         signal.signal(signal.SIGINT, self._exit_handler)
@@ -87,7 +77,7 @@ class VirtualExchange:
             self._strategy_process_pool = multiprocessing.get_context('spawn').Pool(
                 self.num_strategies)  # USE SPAWN HERE? Check bloat
         except KeyboardInterrupt:
-            self.stop()
+            self._stop()
 
         # Set the handler for SIGINT. Now SIGINT is only handled in the main process
         signal.signal(signal.SIGINT, self._exit_handler)
@@ -99,16 +89,16 @@ class VirtualExchange:
                 self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api, self.save_data_location)
             logging.info("TEST")
             res = self._strategy_process_pool.apply_async(
-                run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
+                _run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
             logging.info(f"Started strategy {strategy_num}")
 
         logging.info("Started strategies")
-        self._error_processor.join_thread()
+        self._error_processor._join_thread()
         logging.info("Error processing thread joined")
 
-        self.stop()
+        self._stop()
 
-    def stop(self, should_exit=True):
+    def _stop(self, should_exit=True):
         logging.info("Stopping Program")
         self._stop_event.set()  # Inform child processes to stop
         # logging.info(self._error_processor.exception)
@@ -135,7 +125,7 @@ class VirtualExchange:
             if self._error_processor.is_error:
                 logging.info(self._error_processor.exception)
             else:
-                self._error_processor.stop_queue_polling()
+                self._error_processor._stop_queue_polling()
             logging.info("Error processor stopped")
 
         if should_exit:
@@ -155,22 +145,33 @@ class VirtualExchange:
         if signum == signal.SIGINT:
             logging.info("\nStopping...")
             if self._setup_finished:
-                self.stop()
+                self._stop()
             else:
                 self._pre_setup_terminate = True
 
     def register_strategy(self, strategy_func, *args):
+        """Register a function to be executed. Include any arguments that the strategy function should be provided (any number of arguments is permissible). N.B. When the strategies are started, each strategy function
+        is always provided with an :py:class:`Exchange <prototrade.exchange.exchange.Exchange>` object as the first parameter. This enables the strategy to interact with the framework.
+
+        :param strategy_func: A strategy function to register
+        :type strategy_func: function
+        :param \*\ args: the parameters to pass to the strategy function, optional
+        :type \*\ args: any
+        """
         self.num_strategies += 1
         self._strategy_list.append(Strategy(strategy_func, args))
 
     def run_strategies(self):
+        """
+        Begins the execution of all strategies
+        """
         try:
-            self.create_components() # Try to start all the components and user strategies
+            self._create_components() # Try to start all the components and user strategies
         except Exception as e:
-            self.stop(False)  # Cleanup then re-raise exception
+            self._stop(False)  # Cleanup then re-raise exception
             raise (e)
 
-    def create_components(self):
+    def _create_components(self):
         self._order_books_dict = self._create_shared_memory(
             self.num_strategies)
 
@@ -188,7 +189,7 @@ class VirtualExchange:
             raise ExchangeNotOpenException(
                 f"The live exchange is currently closed. Try again during trading hours")
 
-        self.create_shared_rest_api_class()
+        self._create_shared_rest_api_class()
 
         self._subscription_queue = self.manager.Queue()
 
@@ -203,15 +204,15 @@ class VirtualExchange:
 
         self._setup_finished = True
         if self._pre_setup_terminate:
-            self.stop()  # If CTRL-C pressed while setting up, then trigger stop now
+            self._stop()  # If CTRL-C pressed while setting up, then trigger stop now
 
         self._create_processes_for_strategies()
 
     # This creates a REST api object that is shareable across strategy processes. This means the user can query historical data
-    def create_shared_rest_api_class(self):
-        CustomManager.register(
-            'HistoricalAPI', HistoricalAPI, HistoricalAPIProxy)
-        self._rest_api_manager = CustomManager()
+    def _create_shared_rest_api_class(self):
+        _CustomManager.register(
+            'HistoricalAPI', _HistoricalAPI, _HistoricalAPIProxy)
+        self._rest_api_manager = _CustomManager()
         self._rest_api_manager.start()
         rest_api = self._rest_api_manager.HistoricalAPI(
             self._streamer.get_rest_api())  # Pass in the actual rest api as a parameter
@@ -221,36 +222,36 @@ class VirtualExchange:
 # This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
 
 
-def run_strategy(error_queue, func, exchange, *args):
+def _run_strategy(error_queue, func, exchange, *args):
     try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
         logging.info(f"Running {exchange.exchange_num}")
         func(exchange, *args)
-    except Exception as e:
+    except Exception:
         try:
-            handle_error(error_queue, exchange.exchange_num)
+            _handle_error(error_queue, exchange.exchange_num)
         except Exception as e2:
             logging.critical(
                 f"During handling of a strategy error, another error occured: {e2}")
         # At this point the process has finished and can be joined with the main process
 
 
-def handle_error(error_queue, exchange_num):
+def _handle_error(error_queue, exchange_num):
     logging.error(f"Process {exchange_num} EXCEPTION")
     # Get a string with full original stack trace
     exception_info = traceback.format_exc()
     error_queue.put(ErrorEvent(exchange_num, exception_info))
 
 
-class CustomManager(BaseManager):
+class _CustomManager(BaseManager):
     pass
 
 
-class HistoricalAPI:
+class _HistoricalAPI:
     def __init__(self, api):
         self.api = api  # Holds the api to be used to acquire historical data
 
 
-class HistoricalAPIProxy(NamespaceProxy):
+class _HistoricalAPIProxy(NamespaceProxy):
     # We need to expose the same __dunder__ methods as NamespaceProxy,
     # in addition to the b method.
     _exposed_ = ('__getattribute__', '__setattr__', '__delattr__', 'api')

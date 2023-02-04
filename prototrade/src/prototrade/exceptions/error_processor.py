@@ -30,12 +30,12 @@ class ErrorProcessor:
 
         logging.info("Error queue reader finished")
 
-    def stop_queue_polling(self):
+    def _stop_queue_polling(self):
         # self._subscription_queue.close()
         if self._error_processing_thread:
             # Inform consumer thread to stop
             self._error_queue.put(self._SENTINEL)
-            self.join_thread()
+            self._join_thread()
             
-    def join_thread(self):
+    def _join_thread(self):
         self._error_processing_thread.join()

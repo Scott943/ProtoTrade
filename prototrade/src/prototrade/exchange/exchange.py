@@ -25,11 +25,22 @@ class Exchange:
         self._error_queue = error_queue
         self.exchange_num = exchange_num
         self._stop_event = stop_event
-        self.historical = shared_rest_api
+        self._historical = shared_rest_api
         self._save_data_location = save_data_location
 
         self._position_manager = None
         self._subscribed_symbols = set()
+
+    @property
+    def historical(self):
+        """A REST API proxy that allows access to historical API functions (depends on the market data source being used). 
+        If using alpaca, all functions in the `REST <https://github.com/alpacahq/alpaca-trade-api-python/blob/master/alpaca_trade_api/rest.py>`_ module are available.
+        Example usage within a user strategy: ``exchange.historical.get_bars("PLTR", "1minute", "2022-01-18", "2022-01-18").df``. This retrieves changes in the price
+        of PLTR stock over the given date with a 1 minute granularity.
+
+        :return: REST API Proxy (market data source dependent)
+        """
+        return self._historical
 
     def get_subscribed_quotes(self):
         """Retrieves the latest quotes for the symbols that are subscribed to.
@@ -115,7 +126,7 @@ class Exchange:
         return not self._stop_event.is_set()
 
     # Have to create pos manager after passing exchange to process as pos manager contains an unpickleable object
-    def position_manager_decorator(func):
+    def _position_manager_decorator(func):
         @wraps(func) # ensures docstrings correctly updated
         def wrapper(self, *args):
             if not self._position_manager:
@@ -126,7 +137,7 @@ class Exchange:
 
     # We could use *args here, but we include the complete function signature for documentation reasons
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def create_order(self, symbol, order_side, order_type, volume, price = None):
         """Submit an order to the framework. When a *'market'* or *'limit'* order is submitted, the framework will repeatedly check whether it can be executed.
         When a *'fok'* (Fill-Or-Kill) order is submitted, the framework will check whether it can be executed once. If it cannot be executed at the specified price, the order will be cancelled.
@@ -146,7 +157,7 @@ class Exchange:
         """
         return self._position_manager.create_order(symbol, order_side, order_type, volume, price)
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def get_orders(self, symbol = None):
         """Retrive the open orders for a strategy. If the symbol argument is specified, then only retrieves orders for that particular symbol.
         Otherwise, all open orders for the strategy are returned.
@@ -158,7 +169,7 @@ class Exchange:
         """
         return self._position_manager.get_orders(symbol)
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def get_strategy_best_bid(self, symbol):
         """Get the current best bid in the strategy's open orders for a specified symbol. Simply, this is the highest price that the strategy is 'willing to pay' for a particular stock.
         In the framework implementation, this reads the top of bid heap for the particular symbol.
@@ -170,7 +181,7 @@ class Exchange:
         """
         return self._position_manager.get_strategy_best_bid(symbol)
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def get_strategy_best_ask(self, symbol):
         """Get the current best ask in the strategy's open orders for a specified symbol. Simply, this is the lowest price that the strategy is 'willing to sell' a particular stock at.
         In the framework implementation, this reads the top of ask heap for the particular symbol.
@@ -182,7 +193,7 @@ class Exchange:
         """
         return self._position_manager.get_strategy_best_ask(symbol)
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def cancel_order(self, order_id, volume_requested = None):
         """Removes the order with order_id from the list of open orders.
 
@@ -193,7 +204,7 @@ class Exchange:
         """
         self._position_manager.cancel_order(order_id, volume_requested)
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def get_positions(self, symbol_filter = None):
         """Retrieve a dictionary of the strategy's current positions held. Here, a negative value in the dictionary implies a short position is being held.
 
@@ -204,7 +215,7 @@ class Exchange:
         """
         return self._position_manager.get_positions(symbol_filter)
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def get_transactions(self, symbol_filter = None):
         """Get a list of all previous transactions made (for a particular symbol)
 
@@ -215,7 +226,7 @@ class Exchange:
         """
         return self._position_manager.get_transactions(symbol_filter)
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def get_pnl(self):
         """Retrieves the Profit-And-Loss for the calling strategy.
 
@@ -224,7 +235,7 @@ class Exchange:
         """
         return self._position_manager.get_pnl()
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def get_pnl_over_time(self):
         """Retrieves the PnL for a strategy over several time-intervals (since the strategy started)
 
@@ -233,7 +244,7 @@ class Exchange:
         """
         return self._position_manager.get_pnl_over_time()
 
-    @position_manager_decorator
+    @_position_manager_decorator
     def get_positions_over_time(self, symbol = None):
         """Retrieves the positions dictionary over several time-intervals (since the strategy started)
 
