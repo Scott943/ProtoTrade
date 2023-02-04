@@ -19,7 +19,7 @@ SENTINEL = None
 
 logging.basicConfig(level=logging.INFO)
 
-class VirtualExchange:
+class StrategyRegistry:
     """The master class used for initialising & running the framework. Handles allocating processes to each of the registered strategies.
 
     :raises ExchangeNotOpenException: If the exchange is currently closed, this error is raised

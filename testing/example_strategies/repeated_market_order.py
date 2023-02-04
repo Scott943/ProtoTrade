@@ -1,4 +1,4 @@
-from prototrade.virtual_exchange import VirtualExchange
+from prototrade.strategy_registry import StrategyRegistry
 import time
 import random
 from matplotlib import pyplot as plt
@@ -9,7 +9,7 @@ def main():
     We register two strategies here (both executing the same function but with different function parameters). 
     One strategy repeatedly places orders of low volume, whilst the other places orders with a higher volume.
     """
-    pt = VirtualExchange("alpaca",
+    pt = StrategyRegistry("alpaca",
                     "AKFA6O7FWKEQ30SFPB9H",
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
                     "sip")

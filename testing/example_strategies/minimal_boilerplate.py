@@ -1,10 +1,10 @@
-from prototrade.virtual_exchange import VirtualExchange
+from prototrade.strategy_registry import StrategyRegistry
 import time
 
 def main():
     """Here we register a single strategy that repeatedly places a market order for Apple with a volume of 5.
     """
-    pt = VirtualExchange("alpaca",
+    pt = StrategyRegistry("alpaca",
                     "AKFA6O7FWKEQ30SFPB9H",
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
                     "sip")
