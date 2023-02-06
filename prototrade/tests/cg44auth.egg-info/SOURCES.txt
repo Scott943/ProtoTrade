@@ -1,0 +1,6 @@
+cg44auth.egg-info/PKG-INFO
+cg44auth.egg-info/SOURCES.txt
+cg44auth.egg-info/dependency_links.txt
+cg44auth.egg-info/entry_points.txt
+cg44auth.egg-info/requires.txt
+cg44auth.egg-info/top_level.txt

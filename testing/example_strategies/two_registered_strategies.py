@@ -49,17 +49,12 @@ def test_strategy(exchange, lower_volume, upper_volume):
         print("Transactions:", exchange.get_transactions())
         print("Positions", exchange.get_positions())
 
-        pnl_pd = pd.DataFrame(exchange.get_pnl_over_time(), columns = ['timestamp', 'pnl'])
-        if not pnl_pd.empty:
-            plot = pnl_pd.plot(x="timestamp", y="pnl")
-            plot.set_xlabel("TimeStamp")
-            plot.set_ylabel("Profit / Loss")
-            plt.savefig("test2")
-
         print("---------------")
         time.sleep(3)
-        
+
+
     print("Strategy 0 FINISHED")
+    
 
 # Need this on Windows machines to avoid repeatedly spawning processes
 if __name__ == '__main__': 

@@ -1,0 +1,6 @@
+cg44db.egg-info/PKG-INFO
+cg44db.egg-info/SOURCES.txt
+cg44db.egg-info/dependency_links.txt
+cg44db.egg-info/entry_points.txt
+cg44db.egg-info/requires.txt
+cg44db.egg-info/top_level.txt

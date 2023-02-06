@@ -1,0 +1,19 @@
+Metadata-Version: 2.1
+Name: cg44db
+Version: 0.0.2
+Summary: Warwicks CG44 Python Data Models & Database Interfaces
+Home-page: UNKNOWN
+License: UNKNOWN
+Description: # data-models
+        This repositoty will hold all data & database related config, schema and models.
+        
+        ## DataDB Interface
+        tbd
+        
+        ## MetaDB Interface
+        tbd
+Platform: UNKNOWN
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Provides-Extra: default
+Provides-Extra: test

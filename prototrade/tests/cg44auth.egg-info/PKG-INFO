@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Name: cg44auth
+Version: 0.0.1
+Summary: Warwicks CG44 Oauth2 Auth
+Home-page: UNKNOWN
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Provides-Extra: test

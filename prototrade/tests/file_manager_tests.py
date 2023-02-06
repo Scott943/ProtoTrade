@@ -6,10 +6,11 @@ import shutil
 from prototrade.file_manager.file_manager import FileManager
 
 class TestFileManager(unittest.TestCase):
-   NUM_STRATEGIES = 4
+   
    
    def setUp(self):
-      self.file_manager = FileManager(Path(__file__).parent.resolve()/"sample_dir", self.NUM_STRATEGIES)
+      self.num_strategies = 4
+      self.file_manager = FileManager(Path(__file__).parent.resolve()/"sample_dir", self.num_strategies)
       p = Path(self.file_manager.root_path)
       
       # Delete everything in sampel dir
@@ -29,7 +30,7 @@ class TestFileManager(unittest.TestCase):
 
       num_files = len(list(self.file_manager.strategy_path.iterdir()))
 
-      assert num_files == self.NUM_STRATEGIES
+      assert num_files == self.num_strategies
 
       
 

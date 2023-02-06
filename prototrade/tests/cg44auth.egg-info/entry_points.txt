@@ -1,0 +1,3 @@
+[console_scripts]
+cg44auth = cg44auth.__init__:main
+

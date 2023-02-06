@@ -1,0 +1,11 @@
+pydantic==1.8.2
+
+[default]
+pymongo==3.12.0
+
+[test]
+black==21.4b2
+flake8==3.9.2
+pytest-cov==3.0.0
+pytest==6.2.4
+tox==3.24.4

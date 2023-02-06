@@ -10,6 +10,7 @@ from prototrade.exceptions.error_processor import ErrorProcessor
 from prototrade.models.error_event import ErrorEvent
 from prototrade.exceptions.exceptions import ExchangeNotOpenException
 from pathlib import Path
+from prototrade.file_manager.file_manager import FileManager
 
 import traceback
 import signal
@@ -46,8 +47,10 @@ class StrategyRegistry:
         self._streamer_key = streamer_key
         self._exchange_name = exchange_name
 
-        if not save_data_location:
-            self.save_data_location =  Path('.')
+        if save_data_location:
+            self.save_data_location = Path(save_data_location).resolve()
+        else:
+            self.save_data_location = Path('.').resolve()
 
         self._pre_setup_terminate = False
         self._setup_finished = False
@@ -83,10 +86,13 @@ class StrategyRegistry:
         signal.signal(signal.SIGINT, self._exit_handler)
 
         logging.info("Creating strategy processes")
+
+        self.file_manager = FileManager(self.save_data_location, self.num_strategies)
         
         for strategy_num, strategy in enumerate(self._strategy_list):
+            save_data_location_for_strategy = self.file_manager.get_strategy_save_location(strategy_num)
             exchange = Exchange(
-                self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api, self.save_data_location)
+                self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api, save_data_location_for_strategy)
             logging.info("TEST")
             res = self._strategy_process_pool.apply_async(
                 _run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
@@ -241,15 +247,12 @@ def _handle_error(error_queue, exchange_num):
     exception_info = traceback.format_exc()
     error_queue.put(ErrorEvent(exchange_num, exception_info))
 
-
 class _CustomManager(BaseManager):
     pass
-
 
 class _HistoricalAPI:
     def __init__(self, api):
         self.api = api  # Holds the api to be used to acquire historical data
-
 
 class _HistoricalAPIProxy(NamespaceProxy):
     # We need to expose the same __dunder__ methods as NamespaceProxy,

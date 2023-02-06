@@ -3,3 +3,4 @@ investigation
 build
 dist
 venv
+testing/test_data/*

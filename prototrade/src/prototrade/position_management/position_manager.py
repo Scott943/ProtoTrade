@@ -16,6 +16,7 @@ from collections import defaultdict
 from threading import Lock
 import datetime
 import numpy as np
+import csv
 
 from prototrade.models.error_event import ErrorEvent
 
@@ -31,6 +32,8 @@ class PositionManager:
         self._subscribed_symbols = subscribed_symbols
         self._save_data_location = save_data_location
 
+        logging.info(f"Strategy saving at {self._save_data_location}")
+
         self._open_orders_polling_thread = None
         self._positions_map = defaultdict(int)
         self._open_orders = dict() # symbol name -> (bid heap, ask heap)
@@ -42,6 +45,10 @@ class PositionManager:
         self._open_orders_polling_thread = None
 
         self._rolling_pnl_list = []
+        self.pnl_file = open(self._save_data_location/"PnL.csv", "a+")
+        self.csv_writer_pnl = csv.writer(self.pnl_file)
+        self.csv_reader_pnl = csv.reader(self.pnl_file, delimiter=',')
+        
         self._rolling_position_dict = defaultdict(list)
 
         self._order_objects_lock = Lock() # have to acquire lock whenever accessing order_dict or open_orders
@@ -282,6 +289,8 @@ class PositionManager:
             handle_error(self._error_queue, self._exchange_num)
 
     def release_locks(self):
+        self.pnl_file.close()
+
         logging.info("Releasing all PM locks")
         if self._order_objects_lock.locked():
             self._order_objects_lock.release()
@@ -318,25 +327,33 @@ class PositionManager:
 
             if time.time() - last_pnl_time > 1:
                 timestamp = datetime.datetime.now()
-                pnl = self.get_pnl()
+                
                 positions = deepcopy(self._positions_map)
-                self._rolling_pnl_list_lock.acquire()
-                self._rolling_pnl_list.append([timestamp, pnl])
-                self._rolling_pnl_list_lock.release()
-                self._rolling_position_dict_lock.acquire()
-                self._rolling_position_dict[symbol].append([timestamp, positions[symbol]])
-                self._rolling_position_dict_lock.release()
+                
+                self.write_pnl_to_csv(timestamp)
+                
+                # self._rolling_position_dict_lock.acquire()
+                # self._rolling_position_dict[symbol].append([timestamp, positions[symbol]])
+                # self._rolling_position_dict_lock.release()
                 last_pnl_time = time.time()
 
             time.sleep(0.3)
   
         logging.info("Open order polling thread finished")
 
+    def write_pnl_to_csv(self, timestamp):
+        self._rolling_pnl_list_lock.acquire()
+        pnl = self.get_pnl()
+        logging.info("Writing to pnl")
+        self.csv_writer_pnl.writerow([timestamp, pnl])
+        self._rolling_pnl_list_lock.release()
+
     def get_pnl_over_time(self):
         self._rolling_pnl_list_lock.acquire()
-        pnl = deepcopy(self._rolling_pnl_list)
+        self.pnl_file.seek(0) # seek to start of file to read all
+        pnl_list = list(self.csv_reader_pnl)
         self._rolling_pnl_list_lock.release()
-        return pnl
+        return pnl_list
 
     def get_positions_over_time(self, symbol = None):
         self._rolling_position_dict_lock.acquire()

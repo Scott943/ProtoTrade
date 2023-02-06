@@ -1,0 +1,4 @@
+- Make accessible variables into properties (HISTORICAL)
+- Output only particular strategy
+- Post processing function
+- Graphing in documentation
