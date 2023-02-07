@@ -2,3 +2,4 @@
 - Output only particular strategy
 - Post processing function
 - Graphing in documentation
+- Check datetime formats are the same

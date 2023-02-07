@@ -1,8 +1,6 @@
 from prototrade.strategy_registry import StrategyRegistry
 import time
 import random
-from matplotlib import pyplot as plt
-import pandas as pd
 
 def main():
     """
@@ -16,7 +14,6 @@ def main():
     pt.register_strategy(test_strategy, 1, 3) # First variation of the strategy only places small volume orders
     pt.register_strategy(test_strategy, 10, 20) # Second variation of the strategy places higher volume orders
     pt.run_strategies()
-
 
 def test_strategy(exchange, lower_volume, upper_volume):
     """

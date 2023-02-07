@@ -21,6 +21,8 @@ import csv
 from prototrade.models.error_event import ErrorEvent
 
 SYMBOL_REQUEST_TIMEOUT = 5
+
+DATETIME_FORMAT = "%y-%m-%d %H:%M:%S"
 class PositionManager:
     def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event, error_queue, exchange_num, subscribed_symbols, save_data_location):
         logging.info("L:DSJF:LDSFJL:DSFJ:LSF")
@@ -326,7 +328,7 @@ class PositionManager:
             self._order_objects_lock.release()
 
             if time.time() - last_pnl_time > 1:
-                timestamp = datetime.datetime.now()
+                timestamp = datetime.datetime.now().strftime(DATETIME_FORMAT)
                 
                 positions = deepcopy(self._positions_map)
                 
@@ -343,7 +345,7 @@ class PositionManager:
 
     def write_pnl_to_csv(self, timestamp):
         self._rolling_pnl_list_lock.acquire()
-        pnl = self.get_pnl()
+        pnl = round(self.get_pnl(), 3)
         logging.info("Writing to pnl")
         self.csv_writer_pnl.writerow([timestamp, pnl])
         self._rolling_pnl_list_lock.release()
@@ -351,7 +353,16 @@ class PositionManager:
     def get_pnl_over_time(self):
         self._rolling_pnl_list_lock.acquire()
         self.pnl_file.seek(0) # seek to start of file to read all
+        
         pnl_list = list(self.csv_reader_pnl)
+
+        if len(pnl_list) == 0:
+            self._rolling_pnl_list_lock.release()
+            return None
+
+        for pair in pnl_list:
+            pair[0] = datetime.datetime.strptime(pair[0], DATETIME_FORMAT)
+
         self._rolling_pnl_list_lock.release()
         return pnl_list
 

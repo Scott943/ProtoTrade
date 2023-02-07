@@ -25,13 +25,23 @@ class Exchange:
         self._order_books_dict_semaphore = order_books_dict_semaphore
         self._subscription_queue = subscription_queue
         self._error_queue = error_queue
-        self.exchange_num = exchange_num
+        self._exchange_num = exchange_num
         self._stop_event = stop_event
         self._historical = shared_rest_api
         self._save_data_location = save_data_location
 
         self._position_manager = None
         self._subscribed_symbols = set()
+
+
+    @property 
+    def strategy_number(self):
+        """Retrieve the strategy number of the calling strategy
+
+        :return: The strategy number (1 indexed)
+        :rtype: int
+        """
+        return self._exchange_num + 1
 
     @property
     def historical(self):
@@ -72,16 +82,16 @@ class Exchange:
         while symbol not in self._order_books_dict:
             self._order_books_dict_semaphore.release()
             time.sleep(0.2)
-            logging.info(f"{self.exchange_num} Waiting for {symbol} to come in")
+            logging.info(f"{self._exchange_num} Waiting for {symbol} to come in")
             self._order_books_dict_semaphore.acquire()
 
             if time.time() - start_time > SYMBOL_REQUEST_TIMEOUT:
                 raise UnavailableSymbolException(
-                    f"Symbol request timeout: strategy number {self.exchange_num + 1} cannot find requested symbol '{symbol}' from exchange. Check symbol exists & exchange is open.")
+                    f"Symbol request timeout: strategy number {self._exchange_num + 1} cannot find requested symbol '{symbol}' from exchange. Check symbol exists & exchange is open.")
 
             if self._stop_event.is_set():
                 raise UnavailableSymbolException(
-                    f"Interrupt while waiting for symbol '{symbol}' to arrive in strategy number {self.exchange_num + 1}")
+                    f"Interrupt while waiting for symbol '{symbol}' to arrive in strategy number {self._exchange_num + 1}")
 
     def get_subscriptions(self):
         """Returns a set symbols that the strategy is currently subscribed to
@@ -99,7 +109,7 @@ class Exchange:
         :type symbol: *str*
         """
         self._subscription_queue.put(
-            SubscriptionEvent(symbol, SubscribeType.SUBSCRIBE, self.exchange_num))
+            SubscriptionEvent(symbol, SubscribeType.SUBSCRIBE, self._exchange_num))
         self._subscribed_symbols.add(symbol)
 
     def unsubscribe(self, symbol):
@@ -111,11 +121,11 @@ class Exchange:
         """
         if symbol in self._subscribed_symbols:
             self._subscription_queue.put(
-                SubscriptionEvent(symbol, SubscribeType.UNSUBSCRIBE, self.exchange_num))
+                SubscriptionEvent(symbol, SubscribeType.UNSUBSCRIBE, self._exchange_num))
             self._subscribed_symbols.remove(symbol)
         else:
             raise SubscriptionException(
-                f"Strategy {self.exchange_num + 1} attempted to unsubscribe from a symbol that was not subscribed to")
+                f"Strategy {self._exchange_num + 1} attempted to unsubscribe from a symbol that was not subscribed to")
 
     def is_running(self):
         """Check whether the framework is still running. If the user exits or any strategy encounters an exception, this will return 'False'
