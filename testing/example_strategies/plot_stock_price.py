@@ -32,24 +32,25 @@ def test_strategy(exchange, vol_per_order):
         
         exchange.create_order("AAPL", "bid", "market", vol_per_order) # Example of placing an order 
 
-        pnl_over_time = exchange.get_pnl_over_time() # returns a list of lists.  
-        # get_pnl_over_time() is a costly function so don't call this every loop in practice.
-
-        plot_pnl(pnl_over_time) # user defined function to plot the pnl (see below)
+        plot_aapl(exchange) # pass in the exchange to the user defined plotting function
 
         print("-----")
         time.sleep(3)
         
     print("Strategy 0 FINISHED")
 
-def plot_pnl(pnl_over_time):
-    if pnl_over_time:
-        pnl_df = pd.DataFrame(pnl_over_time, columns = ['timestamp', 'pnl']) # convert to dataframe
-        plt.plot(pnl_df['timestamp'], pnl_df['pnl'])
-        plt.xlabel("TimeStamp")
-        plt.ylabel("Profit / Loss")
-        plt.gcf().autofmt_xdate()
-        plt.savefig("pnl_for_strategy")
+def plot_aapl(exchange):
+    aapl_price_bars = exchange.historical.get_bars("AAPL", "1minute", "2021-01-13", "2021-01-13").df
+    # Reformat data (drop multiindex, rename columns, reset index)
+    aapl_price_bars.columns = aapl_price_bars.columns.to_flat_index()
+    aapl_price_bars.reset_index(inplace=True)
+
+    # Plot stock price data
+    plot = aapl_price_bars.plot(x="timestamp", y="close")
+    plot.set_xlabel("Date")
+    plot.set_ylabel("Apple Close Price ($)")
+    plt.savefig("aapl_bars")
+
 
 # Need this on Windows machines to avoid repeatedly spawning processes
 if __name__ == '__main__': 

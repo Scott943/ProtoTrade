@@ -47,18 +47,27 @@ class PositionManager:
         self._open_orders_polling_thread = None
 
         self._rolling_pnl_list = []
-        self.pnl_file = open(self._save_data_location/"PnL.csv", "a+")
-        self.csv_writer_pnl = csv.writer(self.pnl_file)
-        self.csv_reader_pnl = csv.reader(self.pnl_file, delimiter=',')
-        
         self._rolling_position_dict = defaultdict(list)
 
+        self.initialise_locks()
+        self.initialise_file_pointers()
+        
+    def initialise_locks(self):
         self._order_objects_lock = Lock() # have to acquire lock whenever accessing order_dict or open_orders
         self._rolling_pnl_list_lock = Lock() 
         self._positions_map_lock = Lock()
         self._transaction_pnl_lock = Lock()
         self._transaction_history_lock = Lock()
         self._rolling_position_dict_lock = Lock()
+
+    def initialise_file_pointers(self):
+        self.pnl_file = open(self._save_data_location/"PnL.csv", "a+")
+        self.csv_writer_pnl = csv.writer(self.pnl_file)
+        self.csv_reader_pnl = csv.reader(self.pnl_file, delimiter=',')
+
+        self.transactions_file = open(self._save_data_location/"Transactions.csv", "a+")
+        self.csv_writer_transactions = csv.writer(self.transactions_file)
+        self.csv_reader_transactions = csv.reader(self.transactions_file, delimiter=',')
         
 
     def create_order(self, symbol, order_side, order_type, volume, price = None):
@@ -292,6 +301,7 @@ class PositionManager:
 
     def release_locks(self):
         self.pnl_file.close()
+        self.transactions_file.close()
 
         logging.info("Releasing all PM locks")
         if self._order_objects_lock.locked():
@@ -376,9 +386,9 @@ class PositionManager:
         return positions
 
     def _register_new_transaction(self, symbol, order_side, order_type, volume, price, time):
-        transaction = Transaction(symbol, order_side, order_type, volume, price, time)
+        t = Transaction(symbol, order_side, order_type, volume, price, time)
         self._transaction_history_lock.acquire()
-        self._transaction_history.append(transaction)
+        self.csv_writer_transactions.writerow([t.symbol, t.order_side, t.order_type, t.volume, t.price, t.timestamp])
         self._transaction_history_lock.release()
         self._positions_map_lock.acquire()
         if order_side == "bid":
@@ -387,16 +397,16 @@ class PositionManager:
             self._positions_map[symbol] -= volume
         self._positions_map_lock.release()
 
-        transaction_amount = transaction.price * transaction.volume
+        transaction_amount = t.price * t.volume
 
         self._transaction_pnl_lock.acquire()
-        if transaction.order_side == "bid":
+        if t.order_side == "bid":
             self._transaction_pnl -= transaction_amount # bid side so lost money and gained assets
         else:
             self._transaction_pnl += transaction_amount # ask side so gained money and lost assets
 
         self._transaction_pnl_lock.release()
-        return transaction
+        return t
 
     def execute_any_bid_orders(self, symbol, bid_heap, live_best_ask_half_quote):
         while bid_heap and bid_heap[0].price >= live_best_ask_half_quote.price:
@@ -427,10 +437,16 @@ class PositionManager:
 
     def get_transactions(self, symbol_filter = None):
         self._transaction_history_lock.acquire()
+        self.transaction_list.seek(0) # seek to start of file to read all
+        
+        trans = []
         if symbol_filter:
-            trans =  deepcopy([trans for trans in self._transaction_history if trans.symbol == symbol_filter])
+            for row in self.csv_reader_transaction:
+                if row[0] == "symbol_filter":
+                    trans.append(Transaction(*row))
         else:
-            trans = deepcopy(self._transaction_history)
+            for row in self.csv_reader_transaction:
+                trans.append(Transaction(*row))
         self._transaction_history_lock.release()
         return trans
 

@@ -1,5 +1,5 @@
-- Make accessible variables into properties (HISTORICAL)
 - Output only particular strategy
-- Post processing function
 - Graphing in documentation
-- Check datetime formats are the same
+- Check datetime formats are the same as alpaca
+- Post processing function for graphing
+- Graphing across strategies
