@@ -11,6 +11,8 @@ from prototrade.models.error_event import ErrorEvent
 from prototrade.exceptions.exceptions import ExchangeNotOpenException
 from pathlib import Path
 from prototrade.file_manager.file_manager import FileManager
+from prototrade.models.strategy_file_locks import _StrategyLocks
+from prototrade.grapher.grapher import _Grapher
 
 import traceback
 import signal
@@ -58,14 +60,16 @@ class StrategyRegistry:
         self._streamer = None
         self._stop_event = None
         self._strategy_process_pool = None
-        self._rest_api_manager = None
+        self._custom_obj_manager = None
         self._subscription_manager = None
         self._subscription_queue = None
         self._error_queue = None
         self._error_processor = None
+        self._grapher = None
 
         self.num_strategies = 0  # This will be incremented when strategies are added
         self._strategy_list = []
+        self._file_locks = []
 
     def _create_processes_for_strategies(self):
         logging.info(f"Number of strategies: {self.num_strategies}")
@@ -87,13 +91,16 @@ class StrategyRegistry:
 
         logging.info("Creating strategy processes")
 
-        self.file_manager = FileManager(self.save_data_location, self.num_strategies)
+        self._file_manager = self._create_shared_file_manager(self.save_data_location, self.num_strategies, self._file_locks)
+        self.grapher = _Grapher(self._file_manager, self._file_locks)
         
         for strategy_num, strategy in enumerate(self._strategy_list):
-            save_data_location_for_strategy = self.file_manager.get_strategy_save_location(strategy_num)
+            save_data_location_for_strategy = self._file_manager.get_strategy_save_location(strategy_num)
+            file_locks_for_strategy = self._file_locks[strategy_num]
+
             exchange = Exchange(
-                self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api, save_data_location_for_strategy)
-            logging.info("TEST")
+                self._order_books_dict, self._order_books_dict_semaphore, self._subscription_queue, self._error_queue, strategy_num, self._stop_event, self._historical_api, save_data_location_for_strategy, file_locks_for_strategy)
+
             res = self._strategy_process_pool.apply_async(
                 _run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
             logging.info(f"Started strategy {strategy_num}")
@@ -107,6 +114,7 @@ class StrategyRegistry:
     def _stop(self, should_exit=True):
         logging.info("Stopping Program")
         self._stop_event.set()  # Inform child processes to stop
+
         # logging.info(self._error_processor.exception)
         # Prevents any other task from being submitted
         if self._strategy_process_pool:  # Only close pool if it was opened
@@ -120,8 +128,8 @@ class StrategyRegistry:
             logging.info("Subscription manager stopped")
 
         # Clean up processes before the streamer as processes rely on streamer
-        if self._rest_api_manager:
-            self._rest_api_manager.shutdown()
+        if self._custom_obj_manager:
+            self._custom_obj_manager.shutdown()
 
         if self._streamer:
             self._streamer.stop()
@@ -133,6 +141,8 @@ class StrategyRegistry:
             else:
                 self._error_processor._stop_queue_polling()
             logging.info("Error processor stopped")
+
+        self._file_manager.stop()
 
         if should_exit:
             logging.info("Exiting")
@@ -195,7 +205,8 @@ class StrategyRegistry:
             raise ExchangeNotOpenException(
                 f"The live exchange is currently closed. Try again during trading hours")
 
-        self._create_shared_rest_api_class()
+        self._start_custom_obj_manager()
+        self._create_shared_api_class()
 
         self._subscription_queue = self.manager.Queue()
 
@@ -214,30 +225,47 @@ class StrategyRegistry:
 
         self._create_processes_for_strategies()
 
-    # This creates a REST api object that is shareable across strategy processes. This means the user can query historical data
-    def _create_shared_rest_api_class(self):
+    def _register_custom_objects(self):
         _CustomManager.register(
             'HistoricalAPI', _HistoricalAPI, _HistoricalAPIProxy)
-        self._rest_api_manager = _CustomManager()
-        self._rest_api_manager.start()
-        rest_api = self._rest_api_manager.HistoricalAPI(
+        _CustomManager.register('FileManager', FileManager)
+    
+    def _start_custom_obj_manager(self):
+        self._register_custom_objects()
+
+        self._custom_obj_manager = _CustomManager()
+        self._custom_obj_manager.start()
+
+    # This creates a REST api object that is shareable across strategy processes. This means the user can query historical data
+    def _create_shared_api_class(self):
+        rest_api = self._custom_obj_manager.HistoricalAPI(
             self._streamer.get_rest_api())  # Pass in the actual rest api as a parameter
         # Get the api object within the class wrapper
         self._historical_api = rest_api.api
 
+    def _create_shared_file_manager(self, location, num_strategies):
+        self._file_manager = self._custom_obj_manager.FileManager(location, num_strategies)
+
+    def create_file_locks(self):
+        for _ in self.num_strategies:
+            self._file_locks.append(_StrategyLocks()) #cannot be created inside FileManager as its a shared object
+
+        
+
+
 # This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
-
-
 def _run_strategy(error_queue, func, exchange, *args):
     try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
         logging.info(f"Running {exchange.exchange_num}")
         func(exchange, *args)
     except Exception:
-        try:
+        try:       
             _handle_error(error_queue, exchange.exchange_num)
         except Exception as e2:
             logging.critical(
                 f"During handling of a strategy error, another error occured: {e2}")
+        finally:
+            exchange._stop() # stop and cleanup main thread in exchange
         # At this point the process has finished and can be joined with the main process
 
 

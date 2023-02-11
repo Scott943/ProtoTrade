@@ -24,7 +24,7 @@ SYMBOL_REQUEST_TIMEOUT = 5
 
 DATETIME_FORMAT = "%y-%m-%d %H:%M:%S"
 class PositionManager:
-    def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event, error_queue, exchange_num, subscribed_symbols, save_data_location):
+    def __init__(self, order_books_dict, order_books_dict_semaphore, stop_event, error_queue, exchange_num, subscribed_symbols, save_data_location, file_locks):
         logging.info("L:DSJF:LDSFJL:DSFJ:LSF")
         self._order_books_dict = order_books_dict
         self._order_books_dict_semaphore = order_books_dict_semaphore
@@ -33,6 +33,7 @@ class PositionManager:
         self._exchange_num = exchange_num
         self._subscribed_symbols = subscribed_symbols
         self._save_data_location = save_data_location
+        self._file_locks = file_locks
 
         logging.info(f"Strategy saving at {self._save_data_location}")
 
@@ -46,19 +47,15 @@ class PositionManager:
 
         self._open_orders_polling_thread = None
 
-        self._rolling_pnl_list = []
-        self._rolling_position_dict = defaultdict(list)
 
         self.initialise_locks()
         self.initialise_file_pointers()
         
     def initialise_locks(self):
         self._order_objects_lock = Lock() # have to acquire lock whenever accessing order_dict or open_orders
-        self._rolling_pnl_list_lock = Lock() 
         self._positions_map_lock = Lock()
         self._transaction_pnl_lock = Lock()
         self._transaction_history_lock = Lock()
-        self._rolling_position_dict_lock = Lock()
 
     def initialise_file_pointers(self):
         self.pnl_file = open(self._save_data_location/"PnL.csv", "a+")
@@ -68,6 +65,10 @@ class PositionManager:
         self.transactions_file = open(self._save_data_location/"Transactions.csv", "a+")
         self.csv_writer_transactions = csv.writer(self.transactions_file)
         self.csv_reader_transactions = csv.reader(self.transactions_file, delimiter=',')
+        
+        self.positions_file = open(self._save_data_location/"Positions.csv", "a+")
+        self.csv_writer_positions = csv.writer(self.positions_file)
+        self.csv_reader_positions = csv.reader(self.positions_file, delimiter=',')
         
 
     def create_order(self, symbol, order_side, order_type, volume, price = None):
@@ -295,20 +296,20 @@ class PositionManager:
     def _start_thread(self):
         try:
             self._check_for_executable_orders()
-        except Exception as e: # if exception in thread then release all locks and place error on queue
-            self.release_locks() 
+        except Exception as e: # if exception in thread then release all locks and place error on queue       
+            self.release_locks()
             handle_error(self._error_queue, self._exchange_num)
-
+       
     def release_locks(self):
-        self.pnl_file.close()
-        self.transactions_file.close()
+        logging.info("Closing files")
+        if self.pnl_file:
+            self.pnl_file.close()
+        if self.transactions_file:
+            self.transactions_file.close()
 
         logging.info("Releasing all PM locks")
         if self._order_objects_lock.locked():
             self._order_objects_lock.release()
-
-        if self._rolling_pnl_list_lock.locked():
-            self._rolling_pnl_list_lock.release()
         
         if self._positions_map_lock.locked():
             self._positions_map_lock.release()
@@ -321,7 +322,7 @@ class PositionManager:
 
     def _check_for_executable_orders(self):
         logging.info("Starting open order polling thread")
-        last_pnl_time = time.time()
+        last_log_time = time.time()
         while not self._stop_event.is_set():
             self._order_books_dict_semaphore.acquire()
             for symbol in self._open_orders:
@@ -337,52 +338,73 @@ class PositionManager:
                 self.execute_any_ask_orders(symbol, dual_heap.ask_heap, symbol_quote.bid)
             self._order_objects_lock.release()
 
-            if time.time() - last_pnl_time > 1:
-                timestamp = datetime.datetime.now().strftime(DATETIME_FORMAT)
-                
-                positions = deepcopy(self._positions_map)
-                
-                self.write_pnl_to_csv(timestamp)
-                
-                # self._rolling_position_dict_lock.acquire()
-                # self._rolling_position_dict[symbol].append([timestamp, positions[symbol]])
-                # self._rolling_position_dict_lock.release()
-                last_pnl_time = time.time()
+            if time.time() - last_log_time > 1:
+                self.write_pnl_to_csv()
+                last_log_time = time.time()
 
             time.sleep(0.3)
   
         logging.info("Open order polling thread finished")
 
-    def write_pnl_to_csv(self, timestamp):
-        self._rolling_pnl_list_lock.acquire()
+    def write_positions_to_csv(self):
+        timestamp = datetime.datetime.now().strftime(DATETIME_FORMAT)
+        logging.info("Writing positions to csv")
+        self._file_locks.positions_lock.acquire()
+        self._positions_map_lock.acquire()
+        positions = deepcopy(self._positions_map)
+        self._positions_map_lock.release()
+        for k, v in positions.items():
+            self.csv_writer_positions.writerow([timestamp, k, v])
+
+        self._file_locks.positions_lock.release()
+
+    def _get_timestamp(self):
+        return datetime.datetime.now().strftime(DATETIME_FORMAT)
+
+    def write_pnl_to_csv(self):
+        timestamp = self._get_timestamp()
+        self._file_locks.pnl_lock.acquire()
         pnl = round(self.get_pnl(), 3)
-        logging.info("Writing to pnl")
         self.csv_writer_pnl.writerow([timestamp, pnl])
-        self._rolling_pnl_list_lock.release()
+        self._file_locks.pnl_lock.release()
 
     def get_pnl_over_time(self):
-        self._rolling_pnl_list_lock.acquire()
+        self._file_locks.pnl_lock.acquire()
         self.pnl_file.seek(0) # seek to start of file to read all
         
         pnl_list = list(self.csv_reader_pnl)
 
         if len(pnl_list) == 0:
-            self._rolling_pnl_list_lock.release()
+            self._file_locks.pnl_lock.release()
             return None
+        
+        self._file_locks.pnl_lock.release()
 
         for pair in pnl_list:
             pair[0] = datetime.datetime.strptime(pair[0], DATETIME_FORMAT)
-
-        self._rolling_pnl_list_lock.release()
+            pair[1] = float(pair[1])
+        
         return pnl_list
 
-    def get_positions_over_time(self, symbol = None):
-        self._rolling_position_dict_lock.acquire()
-        if symbol:
-            positions = deepcopy(self._rolling_position_dict[symbol])
+    def get_positions_over_time(self, symbol_filter = None):
+        positions = []
+
+        self._file_locks.positions_lock.acquire()
+        self.positions_file.seek(0)
+
+        if symbol_filter:
+            for row in self.csv_reader_positions:
+                logging.info(row)
+                if row[1] == symbol_filter: 
+                    positions.append(row)
         else:
-            positions = deepcopy(self._rolling_position_dict)
-        self._rolling_position_dict_lock.release()
+            positions = list(self.csv_reader_positions)
+
+        for l in positions:
+            l[0] = datetime.datetime.strptime(l[0], DATETIME_FORMAT)
+            l[2] = int(l[2])
+
+        self._file_locks.positions_lock.release()
         return positions
 
     def _register_new_transaction(self, symbol, order_side, order_type, volume, price, time):
@@ -409,22 +431,27 @@ class PositionManager:
         return t
 
     def execute_any_bid_orders(self, symbol, bid_heap, live_best_ask_half_quote):
+        executed = None
         while bid_heap and bid_heap[0].price >= live_best_ask_half_quote.price:
             executed = heapq.heappop(bid_heap)
-
             logging.info(f"EXECUTED bid order at price {live_best_ask_half_quote.price}: {executed}")
 
             self._register_new_transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_ask_half_quote.price, time.time())
             del self._order_dict[executed.order_id]
+        
+        if executed:
+            self.write_positions_to_csv()
 
     def execute_any_ask_orders(self, symbol, ask_heap, live_best_bid_half_quote):
+        executed = None
         while ask_heap and ask_heap[0].price <= live_best_bid_half_quote.price:
             executed = heapq.heappop(ask_heap)
-
             logging.info(f"EXECUTED ask order at price {live_best_bid_half_quote.price}: {executed}")
             
             self._register_new_transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_bid_half_quote.price, time.time())
             del self._order_dict[executed.order_id]
+        if executed:
+            self.write_positions_to_csv()
 
     def get_positions(self, symbol_filter = None):
         self._positions_map_lock.acquire()
@@ -437,15 +464,15 @@ class PositionManager:
 
     def get_transactions(self, symbol_filter = None):
         self._transaction_history_lock.acquire()
-        self.transaction_list.seek(0) # seek to start of file to read all
-        
+        self.transactions_file.seek(0) # seek to start of file to read all
         trans = []
+        
         if symbol_filter:
-            for row in self.csv_reader_transaction:
-                if row[0] == "symbol_filter":
+            for row in self.csv_reader_transactions:
+                if row[0] ==  symbol_filter:
                     trans.append(Transaction(*row))
         else:
-            for row in self.csv_reader_transaction:
+            for row in self.csv_reader_transactions:
                 trans.append(Transaction(*row))
         self._transaction_history_lock.release()
         return trans
@@ -463,6 +490,10 @@ class PositionManager:
         pnl = self._transaction_pnl # pnl acquired by the transaction history
         # atomic so doesn't need a lock
 
+        self._positions_map_lock.acquire()
+        positions = deepcopy(self._positions_map)
+        self._positions_map_lock.release()
+
         self._order_books_dict_semaphore.acquire()
         for symbol in self._positions_map:
             if symbol not in self._order_books_dict:
@@ -472,10 +503,8 @@ class PositionManager:
         self._order_books_dict_semaphore.release()
 
         # add all unrealised pnl from current positions
-        self._positions_map_lock.acquire()
-        positions = self._positions_map.items()
-        self._positions_map_lock.release()
-        for symbol, amount in positions:
+        
+        for symbol, amount in positions.items():
             if amount > 0:
                 pnl += order_books_snapshot[symbol].bid.price * amount # the money obtained if all shares were sold at best bid price
             elif amount < 0:

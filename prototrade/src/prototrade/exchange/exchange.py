@@ -16,7 +16,7 @@ class Exchange:
     Then, each Exchange object is passed as the first parameter to the corresponding registered strategy function.
     """
 
-    def __init__(self, order_books_dict, order_books_dict_semaphore, subscription_queue, error_queue, exchange_num, stop_event, shared_rest_api, save_data_location):
+    def __init__(self, order_books_dict, order_books_dict_semaphore, subscription_queue, error_queue, exchange_num, stop_event, shared_rest_api, save_data_location, file_locks):
         """
         Initalises an exchange object (initialisation performed automatically in the :py:class:`StrategyRegistry <prototrade.strategy_registry.StrategyRegistry>` class)
         """
@@ -29,10 +29,10 @@ class Exchange:
         self._stop_event = stop_event
         self._historical = shared_rest_api
         self._save_data_location = save_data_location
+        self._file_locks = file_locks
 
         self._position_manager = None
         self._subscribed_symbols = set()
-
 
     @property 
     def strategy_number(self):
@@ -142,7 +142,7 @@ class Exchange:
         @wraps(func) # ensures docstrings correctly updated
         def wrapper(self, *args):
             if not self._position_manager:
-                self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event, self._error_queue, self.exchange_num, self._subscribed_symbols, self._save_data_location)
+                self._position_manager = PositionManager(self._order_books_dict, self._order_books_dict_semaphore, self._stop_event, self._error_queue, self.exchange_num, self._subscribed_symbols, self._save_data_location, self._file_locks)
             return func(self, *args)
         
         return wrapper
@@ -257,7 +257,7 @@ class Exchange:
         return self._position_manager.get_pnl_over_time()
 
     @_position_manager_decorator
-    def get_positions_over_time(self, symbol = None):
+    def get_positions_over_time(self, symbol_filter = None):
         """Retrieves the positions dictionary over several time-intervals (since the strategy started)
 
         :param symbol: The symbol to return positions over time for. If not specified, returns a dictionary of every symbol, defaults to *None*
@@ -265,6 +265,8 @@ class Exchange:
         :return: a dictionary where the key is a symbol and the value is a list of positions over time
         :rtype: *dict*\ (\ *str*\ , *list*\ (\ *tuple*\ (\ *timestamp*\ , *int*\ )))
         """
-        return self._position_manager.get_positions_over_time(symbol)
+        return self._position_manager.get_positions_over_time(symbol_filter)
 
-    
+    def _stop(self):
+        # only need to release the locks in the position manager
+        self._position_manager.release_locks()
