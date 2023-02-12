@@ -8,6 +8,8 @@ from copy import deepcopy
 from functools import wraps
 
 SYMBOL_REQUEST_TIMEOUT = 8
+
+logging.basicConfig(level=logging.DEBUG)
 class Exchange:
     """
     To interact with the framework, the user calls functions in the Exchange object.
@@ -41,7 +43,7 @@ class Exchange:
         :return: The strategy number (1 indexed)
         :rtype: int
         """
-        return self.exchange_num + 1
+        return self.exchange_num
 
     @property
     def historical(self):
@@ -82,16 +84,16 @@ class Exchange:
         while symbol not in self._order_books_dict:
             self._order_books_dict_semaphore.release()
             time.sleep(0.2)
-            logging.info(f"{self.exchange_num} Waiting for {symbol} to come in")
+            logging.debug(f"{self.exchange_num} Waiting for {symbol} to come in")
             self._order_books_dict_semaphore.acquire()
 
             if time.time() - start_time > SYMBOL_REQUEST_TIMEOUT:
                 raise UnavailableSymbolException(
-                    f"Symbol request timeout: strategy number {self.exchange_num + 1} cannot find requested symbol '{symbol}' from exchange. Check symbol exists & exchange is open.")
+                    f"Symbol request timeout: strategy number {self.exchange_num} cannot find requested symbol '{symbol}' from exchange. Check symbol exists & exchange is open.")
 
             if self._stop_event.is_set():
                 raise UnavailableSymbolException(
-                    f"Interrupt while waiting for symbol '{symbol}' to arrive in strategy number {self.exchange_num + 1}")
+                    f"Interrupt while waiting for symbol '{symbol}' to arrive in strategy number {self.exchange_num}")
 
     def get_subscriptions(self):
         """Returns a set symbols that the strategy is currently subscribed to
@@ -125,7 +127,7 @@ class Exchange:
             self._subscribed_symbols.remove(symbol)
         else:
             raise SubscriptionException(
-                f"Strategy {self.exchange_num + 1} attempted to unsubscribe from a symbol that was not subscribed to")
+                f"Strategy {self.exchange_num} attempted to unsubscribe from a symbol that was not subscribed to")
 
     def is_running(self):
         """Check whether the framework is still running. If the user exits or any strategy encounters an exception, this will return 'False'

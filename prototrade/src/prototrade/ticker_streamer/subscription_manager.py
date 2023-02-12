@@ -22,24 +22,24 @@ class SubscriptionManager:
 
             self.symbol_to_strategies_dict[symbol].add(strategy_num)
             logging.info(
-                f"Strategy {strategy_num + 1} subscribes to {symbol}")
+                f"Strategy {strategy_num} subscribes to {symbol}")
         else:
             self.symbol_to_strategies_dict[symbol].add(strategy_num)
             logging.info(
-                f"Strategy {strategy_num + 1} subscribes to {symbol}. Entry added")
+                f"Strategy {strategy_num} subscribes to {symbol}. Entry added")
 
     def unsubscribe(self, strategy_num, symbol):
         if symbol not in self.symbol_to_strategies_dict or strategy_num not in self.symbol_to_strategies_dict[symbol]:
-            raise UnavailableSymbolException(f"Strategy {strategy_num + 1} attempted to unsubscribe from '{symbol}', which is not subscribed to")
+            raise UnavailableSymbolException(f"Strategy {strategy_num} attempted to unsubscribe from '{symbol}', which is not subscribed to")
 
         self.symbol_to_strategies_dict[symbol].remove(strategy_num)
-        logging.info(f"Strategy {strategy_num + 1} unsubs from {symbol}.")
+        logging.info(f"Strategy {strategy_num} unsubscribes from {symbol}.")
         # if no strategies interested... unsubscribe permanantly
         if not self.symbol_to_strategies_dict[symbol]: 
             self._streamer.unsubscribe(symbol)
             del self.symbol_to_strategies_dict[symbol] # remove the entry for the symbol (removes the set of strategies)
-            logging.info(
-                f"No strategies interested in {symbol}")
+            # logging.info(
+            #     f"No strategies interested in {symbol}")
 
     def print_books_subscribed_to(self):
         logging.info(*[key for key in self.symbol_to_strategies_dict], sep=",")
@@ -61,7 +61,7 @@ class SubscriptionManager:
             else:
                 self.unsubscribe(event.strategy_num, event.symbol)
 
-        logging.info("Subscription queue reader finished")
+        logging.debug("Subscription queue reader finished")
 
     def stop_queue_polling(self):
         if self._queue_polling_thread:

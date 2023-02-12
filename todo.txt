@@ -1,5 +1,7 @@
-- Output only particular strategy
-- Graphing in documentation
 - Check datetime formats are the same as alpaca
 - Post processing function for graphing
 - Graphing across strategies
+- Graphs saved in savedata
+- Positions data fok
+- Commenting on example strategies
+- Example of graph positions and stock price on same graph

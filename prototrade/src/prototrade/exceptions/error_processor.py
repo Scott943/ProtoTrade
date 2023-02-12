@@ -2,6 +2,8 @@ from threading import Thread
 from prototrade.models.error_event import ErrorEvent
 import logging
 
+logging.basicConfig(level=logging.DEBUG)
+
 class ErrorProcessor:
     def __init__(self, error_queue, SENTINEL):
         self._error_queue = error_queue
@@ -17,7 +19,7 @@ class ErrorProcessor:
         self._error_processing_thread.start()
 
     def _process_errors(self):
-        logging.info("Error processor started")
+        logging.debug("Error processor started")
         while True:
             event = self._error_queue.get()
 
@@ -28,7 +30,7 @@ class ErrorProcessor:
             self.exception = event.exception  # re-raise the exception in the main_program
             break
 
-        logging.info("Error queue reader finished")
+        logging.debug("Error queue reader finished")
 
     def _stop_queue_polling(self):
         # self._subscription_queue.close()

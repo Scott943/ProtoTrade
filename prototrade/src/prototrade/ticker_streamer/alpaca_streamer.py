@@ -19,17 +19,17 @@ class AlpacaDataStreamer:
         self._secondary_thread = threading.Thread(
             target=self._create_and_run_connection)
         self._secondary_thread.start()
-        time.sleep(4)  # wait for connection to be established
+        time.sleep(3)  # wait for connection to be established
 
     def _create_and_run_connection(self):
         self._conn = tradeapi.stream.Stream(key_id=self._alpaca_api_key, secret_key=self._alpaca_secret_key, base_url=BASE_URL, data_feed=self._exchange_name
                                       )
-        logging.info("Establishing Connection")
+        logging.debug("Establishing Connection")
         self._conn.run()
 
     def subscribe(self, symbol):
         # adds ticker to subscribe instruments and sets handler for self.conn (in secondary thread)
-        logging.info(f"Alpaca subscribes to {symbol}")
+        logging.debug(f"Alpaca subscribes to {symbol}")
         self._conn.subscribe_quotes(self._on_quote, symbol)
 
     def unsubscribe(self, symbol):
@@ -37,11 +37,11 @@ class AlpacaDataStreamer:
 
     # Stops the incoming data stream and collects the processing thread
     def stop(self):
-        logging.info("Stopping conn")
+        logging.debug("Stopping conn")
         self._conn.stop()
-        logging.info("Attempting to join secondary thread")
+        logging.debug("Attempting to join secondary thread")
         self._secondary_thread.join()
-        logging.info("Alpaca connection stopped & receiver thread joined")
+        logging.debug("Alpaca connection stopped & receiver thread joined")
 
     async def _on_quote(self, q):
         quote = Quote(q.bid_size, q.bid_price, q.ask_size,

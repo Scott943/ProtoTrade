@@ -40,7 +40,7 @@ class FileManager:
    def create_file_pointers(self):
       self.pnl_file_pointers = []
       self.pos_file_pointers = []
-      for strategy_num in self._num_strategies:
+      for strategy_num in range(self._num_strategies):
          loc = self.get_strategy_save_location(strategy_num)
          pnl_fp = open(loc/"PnL.csv", "a+")
          self.pnl_file_pointers.append(FileManagerObjects(pnl_fp, csv.writer(pnl_fp), csv.reader(pnl_fp)))

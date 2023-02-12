@@ -1,5 +1,5 @@
 import multiprocessing
-from multiprocessing import Manager, Pool
+from multiprocessing import Manager, Pool, Process
 from multiprocessing.managers import BaseManager, NamespaceProxy
 from prototrade.ticker_streamer.alpaca_streamer import AlpacaDataStreamer
 from prototrade.ticker_streamer.price_updater import PriceUpdater
@@ -20,7 +20,7 @@ import logging
 
 SENTINEL = None
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 class StrategyRegistry:
     """The master class used for initialising & running the framework. Handles allocating processes to each of the registered strategies.
@@ -65,7 +65,8 @@ class StrategyRegistry:
         self._subscription_queue = None
         self._error_queue = None
         self._error_processor = None
-        self._grapher = None
+        self._file_manager = None
+        self._graphing_process = None
 
         self.num_strategies = 0  # This will be incremented when strategies are added
         self._strategy_list = []
@@ -82,18 +83,21 @@ class StrategyRegistry:
         # Windows only supports spawning processes (instead of forking), so design design has been taking to always spawn regardless of operating system
         try:
             self._strategy_process_pool = multiprocessing.get_context('spawn').Pool(
-                self.num_strategies)  # USE SPAWN HERE? Check bloat
+                self.num_strategies + 1)  # USE SPAWN HERE? Check bloat
         except KeyboardInterrupt:
             self._stop()
 
         # Set the handler for SIGINT. Now SIGINT is only handled in the main process
         signal.signal(signal.SIGINT, self._exit_handler)
 
-        logging.info("Creating strategy processes")
+        logging.debug("Creating strategy processes")
 
-        self._file_manager = self._create_shared_file_manager(self.save_data_location, self.num_strategies, self._file_locks)
-        self.grapher = _Grapher(self._file_manager, self._file_locks)
+        self.create_file_locks()
+        self._file_manager = self._custom_obj_manager.FileManager(self.save_data_location, self.num_strategies, self._file_locks)
         
+        self._graphing_process = Process(target = create_grapher, args=(self._error_queue, self._stop_event, self._file_manager, self._file_locks, self.num_strategies,))
+        self._graphing_process.start()
+
         for strategy_num, strategy in enumerate(self._strategy_list):
             save_data_location_for_strategy = self._file_manager.get_strategy_save_location(strategy_num)
             file_locks_for_strategy = self._file_locks[strategy_num]
@@ -103,11 +107,11 @@ class StrategyRegistry:
 
             res = self._strategy_process_pool.apply_async(
                 _run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
-            logging.info(f"Started strategy {strategy_num}")
+            logging.debug(f"Started strategy {strategy_num}")
 
-        logging.info("Started strategies")
+        logging.debug("Started strategies")
         self._error_processor._join_thread()
-        logging.info("Error processing thread joined")
+        logging.debug("Error processing thread joined")
 
         self._stop()
 
@@ -117,15 +121,25 @@ class StrategyRegistry:
 
         # logging.info(self._error_processor.exception)
         # Prevents any other task from being submitted
+
+        # close file manager before closing processes
+        if self._file_manager:
+            self._file_manager.stop()
+
         if self._strategy_process_pool:  # Only close pool if it was opened
-            logging.info("Joining processes")
+            logging.debug("Joining strategy processes")
             self._strategy_process_pool.close()
             self._strategy_process_pool.join()  # Wait for child processes to finish
-            logging.info("Processes terminated")
+            logging.debug("Processes strategy terminated")
+
+        if self._graphing_process:
+            logging.debug("Joining graph process")
+            self._graphing_process.join()
+            logging.debug("Graph process joined")
 
         if self._subscription_manager:
             self._subscription_manager.stop_queue_polling()
-            logging.info("Subscription manager stopped")
+            logging.debug("Subscription manager stopped")
 
         # Clean up processes before the streamer as processes rely on streamer
         if self._custom_obj_manager:
@@ -133,16 +147,14 @@ class StrategyRegistry:
 
         if self._streamer:
             self._streamer.stop()
-            logging.info("Streamer stopped")
+            logging.debug("Streamer stopped")
 
         if self._error_processor:
             if self._error_processor.is_error:
-                logging.info(self._error_processor.exception)
+                logging.error(f"PE: {self._error_processor.exception}")
             else:
                 self._error_processor._stop_queue_polling()
-            logging.info("Error processor stopped")
-
-        self._file_manager.stop()
+            logging.debug("Error processor stopped")
 
         if should_exit:
             logging.info("Exiting")
@@ -201,9 +213,9 @@ class StrategyRegistry:
             self._exchange_name
         )
 
-        if not self._streamer.is_market_open():
-            raise ExchangeNotOpenException(
-                f"The live exchange is currently closed. Try again during trading hours")
+        # if not self._streamer.is_market_open():
+        #     raise ExchangeNotOpenException(
+        #         f"The live exchange is currently closed. Try again during trading hours")
 
         self._start_custom_obj_manager()
         self._create_shared_api_class()
@@ -217,7 +229,7 @@ class StrategyRegistry:
 
         self._error_processor = ErrorProcessor(self._error_queue, SENTINEL)
 
-        logging.info("Creating streamer")
+        logging.debug("Creating streamer")
 
         self._setup_finished = True
         if self._pre_setup_terminate:
@@ -228,7 +240,8 @@ class StrategyRegistry:
     def _register_custom_objects(self):
         _CustomManager.register(
             'HistoricalAPI', _HistoricalAPI, _HistoricalAPIProxy)
-        _CustomManager.register('FileManager', FileManager)
+        _CustomManager.register(
+            'FileManager', FileManager)
     
     def _start_custom_obj_manager(self):
         self._register_custom_objects()
@@ -243,14 +256,9 @@ class StrategyRegistry:
         # Get the api object within the class wrapper
         self._historical_api = rest_api.api
 
-    def _create_shared_file_manager(self, location, num_strategies):
-        self._file_manager = self._custom_obj_manager.FileManager(location, num_strategies)
-
     def create_file_locks(self):
-        for _ in self.num_strategies:
-            self._file_locks.append(_StrategyLocks()) #cannot be created inside FileManager as its a shared object
-
-        
+        for _ in range(self.num_strategies):
+            self._file_locks.append(_StrategyLocks(self.manager.Lock(), self.manager.Lock())) #cannot be created inside FileManager as its a shared object
 
 
 # This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
@@ -268,6 +276,18 @@ def _run_strategy(error_queue, func, exchange, *args):
             exchange._stop() # stop and cleanup main thread in exchange
         # At this point the process has finished and can be joined with the main process
 
+def create_grapher(error_queue, *args):
+    try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
+        g = _Grapher(*args)
+        g.run_dash_app()
+    except Exception:
+        try:       
+            _handle_error(error_queue, -1)
+        except Exception as e2:
+            logging.critical(
+                f"During handling of a graphing error, another error occured: {e2}")
+        finally:
+            g._stop() # stop dash app
 
 def _handle_error(error_queue, exchange_num):
     logging.error(f"Process {exchange_num} EXCEPTION")
