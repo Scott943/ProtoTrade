@@ -1,8 +1,12 @@
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 from collections import defaultdict
 from prototrade.models.subscription_event import SubscribeType
 from threading import Thread
-import logging
 from prototrade.exceptions.exceptions import UnavailableSymbolException
+
 
 class SubscriptionManager:
 
@@ -21,11 +25,11 @@ class SubscriptionManager:
             self._streamer.subscribe(symbol)
 
             self.symbol_to_strategies_dict[symbol].add(strategy_num)
-            logging.info(
+            logger.info(
                 f"Strategy {strategy_num} subscribes to {symbol}")
         else:
             self.symbol_to_strategies_dict[symbol].add(strategy_num)
-            logging.info(
+            logger.info(
                 f"Strategy {strategy_num} subscribes to {symbol}. Entry added")
 
     def unsubscribe(self, strategy_num, symbol):
@@ -33,16 +37,16 @@ class SubscriptionManager:
             raise UnavailableSymbolException(f"Strategy {strategy_num} attempted to unsubscribe from '{symbol}', which is not subscribed to")
 
         self.symbol_to_strategies_dict[symbol].remove(strategy_num)
-        logging.info(f"Strategy {strategy_num} unsubscribes from {symbol}.")
+        logger.info(f"Strategy {strategy_num} unsubscribes from {symbol}.")
         # if no strategies interested... unsubscribe permanantly
         if not self.symbol_to_strategies_dict[symbol]: 
             self._streamer.unsubscribe(symbol)
             del self.symbol_to_strategies_dict[symbol] # remove the entry for the symbol (removes the set of strategies)
-            # logging.info(
+            # logger.info(
             #     f"No strategies interested in {symbol}")
 
     def print_books_subscribed_to(self):
-        logging.info(*[key for key in self.symbol_to_strategies_dict], sep=",")
+        logger.info(*[key for key in self.symbol_to_strategies_dict], sep=",")
 
     def _create_thread_to_poll_queue(self):
         self._queue_polling_thread = Thread(
@@ -61,7 +65,7 @@ class SubscriptionManager:
             else:
                 self.unsubscribe(event.strategy_num, event.symbol)
 
-        logging.debug("Subscription queue reader finished")
+        logger.debug("Subscription queue reader finished")
 
     def stop_queue_polling(self):
         if self._queue_polling_thread:

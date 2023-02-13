@@ -1,3 +1,10 @@
+import logging
+logging.basicConfig(format='-%(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# logger.getLogger('websockets').setLevel('INFO')
+
 import multiprocessing
 from multiprocessing import Manager, Pool, Process
 from multiprocessing.managers import BaseManager, NamespaceProxy
@@ -16,11 +23,9 @@ from prototrade.grapher.grapher import _Grapher
 
 import traceback
 import signal
-import logging
+
 
 SENTINEL = None
-
-logging.basicConfig(level=logging.DEBUG)
 
 class StrategyRegistry:
     """The master class used for initialising & running the framework. Handles allocating processes to each of the registered strategies.
@@ -73,7 +78,7 @@ class StrategyRegistry:
         self._file_locks = []
 
     def _create_processes_for_strategies(self):
-        logging.info(f"Number of strategies: {self.num_strategies}")
+        logger.info(f"Number of strategies: {self.num_strategies}")
 
         # Temporarily ignore SIGINT to prevent interrupts being handled in child processes
         signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -90,7 +95,7 @@ class StrategyRegistry:
         # Set the handler for SIGINT. Now SIGINT is only handled in the main process
         signal.signal(signal.SIGINT, self._exit_handler)
 
-        logging.debug("Creating strategy processes")
+        logger.debug("Creating strategy processes")
 
         self.create_file_locks()
         self._file_manager = self._custom_obj_manager.FileManager(self.save_data_location, self.num_strategies, self._file_locks)
@@ -107,19 +112,19 @@ class StrategyRegistry:
 
             res = self._strategy_process_pool.apply_async(
                 _run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
-            logging.debug(f"Started strategy {strategy_num}")
+            logger.debug(f"Started strategy {strategy_num}")
 
-        logging.debug("Started strategies")
+        logger.debug("Started strategies")
         self._error_processor._join_thread()
-        logging.debug("Error processing thread joined")
+        logger.debug("Error processing thread joined")
 
         self._stop()
 
     def _stop(self, should_exit=True):
-        logging.info("Stopping Program")
+        logger.info("Stopping Program")
         self._stop_event.set()  # Inform child processes to stop
 
-        # logging.info(self._error_processor.exception)
+        # logger.info(self._error_processor.exception)
         # Prevents any other task from being submitted
 
         # close file manager before closing processes
@@ -127,19 +132,19 @@ class StrategyRegistry:
             self._file_manager.stop()
 
         if self._strategy_process_pool:  # Only close pool if it was opened
-            logging.debug("Joining strategy processes")
+            logger.debug("Joining strategy processes")
             self._strategy_process_pool.close()
             self._strategy_process_pool.join()  # Wait for child processes to finish
-            logging.debug("Processes strategy terminated")
+            logger.debug("Processes strategy terminated")
 
         if self._graphing_process:
-            logging.debug("Joining graph process")
+            logger.debug("Joining graph process")
             self._graphing_process.join()
-            logging.debug("Graph process joined")
+            logger.debug("Graph process joined")
 
         if self._subscription_manager:
             self._subscription_manager.stop_queue_polling()
-            logging.debug("Subscription manager stopped")
+            logger.debug("Subscription manager stopped")
 
         # Clean up processes before the streamer as processes rely on streamer
         if self._custom_obj_manager:
@@ -147,19 +152,19 @@ class StrategyRegistry:
 
         if self._streamer:
             self._streamer.stop()
-            logging.debug("Streamer stopped")
+            logger.debug("Streamer stopped")
 
         if self._error_processor:
             if self._error_processor.is_error:
-                logging.error(f"PE: {self._error_processor.exception}")
+                logger.error(f"PE: {self._error_processor.exception}")
             else:
                 self._error_processor._stop_queue_polling()
-            logging.debug("Error processor stopped")
+            logger.debug("Error processor stopped")
 
         if should_exit:
-            logging.info("Exiting")
+            logger.info("Exiting")
             exit(0)  # All user work done so can exit
-        logging.info("No exit in stop()")
+        logger.info("No exit in stop()")
 
     def _create_shared_memory(self, num_readers):
         self.manager = Manager()
@@ -171,7 +176,7 @@ class StrategyRegistry:
 
     def _exit_handler(self, signum, _):
         if signum == signal.SIGINT:
-            logging.info("\nStopping...")
+            logger.info("\nStopping...")
             if self._setup_finished:
                 self._stop()
             else:
@@ -213,9 +218,9 @@ class StrategyRegistry:
             self._exchange_name
         )
 
-        # if not self._streamer.is_market_open():
-        #     raise ExchangeNotOpenException(
-        #         f"The live exchange is currently closed. Try again during trading hours")
+        if not self._streamer.is_market_open():
+            raise ExchangeNotOpenException(
+                f"The live exchange is currently closed. Try again during trading hours")
 
         self._start_custom_obj_manager()
         self._create_shared_api_class()
@@ -229,7 +234,7 @@ class StrategyRegistry:
 
         self._error_processor = ErrorProcessor(self._error_queue, SENTINEL)
 
-        logging.debug("Creating streamer")
+        logger.debug("Creating streamer")
 
         self._setup_finished = True
         if self._pre_setup_terminate:
@@ -264,13 +269,13 @@ class StrategyRegistry:
 # This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
 def _run_strategy(error_queue, func, exchange, *args):
     try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
-        logging.info(f"Running {exchange.exchange_num}")
+        logger.info(f"Running {exchange.exchange_num}")
         func(exchange, *args)
     except Exception:
         try:       
             _handle_error(error_queue, exchange.exchange_num)
         except Exception as e2:
-            logging.critical(
+            logger.critical(
                 f"During handling of a strategy error, another error occured: {e2}")
         finally:
             exchange._stop() # stop and cleanup main thread in exchange
@@ -284,13 +289,13 @@ def create_grapher(error_queue, *args):
         try:       
             _handle_error(error_queue, -1)
         except Exception as e2:
-            logging.critical(
+            logger.critical(
                 f"During handling of a graphing error, another error occured: {e2}")
         finally:
             g._stop() # stop dash app
 
 def _handle_error(error_queue, exchange_num):
-    logging.error(f"Process {exchange_num} EXCEPTION")
+    logger.error(f"Process {exchange_num} EXCEPTION")
     # Get a string with full original stack trace
     exception_info = traceback.format_exc()
     error_queue.put(ErrorEvent(exchange_num, exception_info))

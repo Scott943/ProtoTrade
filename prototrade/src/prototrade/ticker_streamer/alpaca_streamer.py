@@ -1,8 +1,11 @@
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 import alpaca_trade_api as tradeapi
 import threading
 from prototrade.models.quotes import Quote
 import time
-import logging
 
 BASE_URL = "https://api.alpaca.markets"
 
@@ -24,12 +27,12 @@ class AlpacaDataStreamer:
     def _create_and_run_connection(self):
         self._conn = tradeapi.stream.Stream(key_id=self._alpaca_api_key, secret_key=self._alpaca_secret_key, base_url=BASE_URL, data_feed=self._exchange_name
                                       )
-        logging.debug("Establishing Connection")
+        logger.debug("Establishing Connection")
         self._conn.run()
 
     def subscribe(self, symbol):
         # adds ticker to subscribe instruments and sets handler for self.conn (in secondary thread)
-        logging.debug(f"Alpaca subscribes to {symbol}")
+        logger.debug(f"Alpaca subscribes to {symbol}")
         self._conn.subscribe_quotes(self._on_quote, symbol)
 
     def unsubscribe(self, symbol):
@@ -37,11 +40,11 @@ class AlpacaDataStreamer:
 
     # Stops the incoming data stream and collects the processing thread
     def stop(self):
-        logging.debug("Stopping conn")
+        logger.debug("Stopping conn")
         self._conn.stop()
-        logging.debug("Attempting to join secondary thread")
+        logger.debug("Attempting to join secondary thread")
         self._secondary_thread.join()
-        logging.debug("Alpaca connection stopped & receiver thread joined")
+        logger.debug("Alpaca connection stopped & receiver thread joined")
 
     async def _on_quote(self, q):
         quote = Quote(q.bid_size, q.bid_price, q.ask_size,

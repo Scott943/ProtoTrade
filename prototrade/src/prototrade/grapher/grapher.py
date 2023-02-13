@@ -1,3 +1,8 @@
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
 import datetime
 from dash import Dash, html, dcc, Input, Output
 import plotly.express as px
@@ -5,9 +10,9 @@ from plotly.subplots import make_subplots
 import pandas as pd
 from threading import Thread
 from flask import request
-import logging
 import os
 import _thread
+
 
 
 DATETIME_FORMAT = "%y-%m-%d %H:%M:%S"
@@ -16,7 +21,7 @@ DEFAULT_STRATEGY = 0
 class _Grapher:
 
    def __init__(self, stop_event, file_manager, file_locks, num_strategies):
-      logging.debug("STARTING GRAPHER")
+      logger.debug("STARTING GRAPHER")
 
       self.pos_over_time = [[
       [datetime.datetime(2023, 2, 8, 15, 32, 26), 'AAPL', 21], 
@@ -135,16 +140,29 @@ class _Grapher:
 
    def set_app_layout(self):
       self.app.layout = html.Div(children=[
-      html.H1(children='Prototrade'),
+         html.H1(children='Prototrade'),
 
-      dcc.Dropdown(["PnL", "Position"], "Position", id='dropdown-graph'),
+            html.Div(children=[
+               
+               html.Label(['Graph Type:'], style={'font-weight': 'bold', "text-align": "center"}),
+               dcc.Dropdown(["PnL", "Position"], "Position", id='dropdown-graph'),
+               
+               html.Span(id="positions-selectors-div", children=[
+                  html.Label(['Strategies To Include:'], style={'font-weight': 'bold', "text-align": "center"}),
+                  dcc.Dropdown(list(range(self._num_strategies)), DEFAULT_STRATEGY, id='dropdown-strategy-number-positions'),
+                  
+                  html.Label(['Symbols:'], style={'font-weight': 'bold', "text-align": "center"}),
+                  dcc.Checklist([],[], id='checkbox-symbol-positions'),
+               ]),
 
-      dcc.Dropdown(list(range(self._num_strategies)), DEFAULT_STRATEGY, id='dropdown-strategy-number-positions'),
-      dcc.Checklist([],[], id='checkbox-symbol-positions'),
+               html.Div(id="pnl-selectors-div", children=[
+                  html.Label(['Strategy:'], style={'font-weight': 'bold', "text-align": "center"}),
+                  dcc.Checklist(list(range(self._num_strategies)), [DEFAULT_STRATEGY], id='checkbox-strategy-number-pnl'),
+               ], style = {'padding': '5px'}),
 
-      dcc.Checklist(list(range(self._num_strategies)), [DEFAULT_STRATEGY], id='checkbox-strategy-number-pnl'),
-
-      dcc.Graph(id='example-graph')
+         ], style = {'max-width': '200px', 'padding': '5px'}),
+      
+         dcc.Graph(id='example-graph')
       ],
       style={'font-family':'monospace'})
 
@@ -176,20 +194,19 @@ class _Grapher:
          return pos_df['Symbol'].unique()
 
       @app.callback(
-         Output('dropdown-strategy-number-positions', 'style'),
-         Output('checkbox-symbol-positions', 'style'),
-         Output('checkbox-strategy-number-pnl', 'style'),
+         Output('positions-selectors-div', 'style'),
+         Output('pnl-selectors-div', 'style'),
          Input('dropdown-graph', 'value')
       )
       def update_shown_components(graph_type):
          # get latest
          if graph_type == "PnL":
-            return [{'display': 'none'}, {'display': 'none'}, {'display': 'block'}]
+            return [{'display': 'none'}, {'display': 'block'}]
 
-         return [{'display': 'block'}, {'display': 'block'}, {'display': 'none'}]
+         return [{'display': 'block'}, {'display': 'none'}]
 
    def stop(self):
-      logging.debug("Try stop dash")
+      logger.debug("Try stop dash")
       
 
       for file_locks_for_strategy in self._file_locks:
@@ -200,14 +217,14 @@ class _Grapher:
             file_locks_for_strategy.positions_lock.release()
 
       # close files
-      logging.debug("Close dash")
+      logger.debug("Close dash")
       os._exit(0)
 
       # func = request.environ.get('werkzeug.server.shutdown')
       # if func is None:
       #    raise RuntimeError('Not running with the Werkzeug Server')
       # func()
-      # logging.debug("Stopped Dash server")
+      # logger.debug("Stopped Dash server")
 
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.

@@ -1,7 +1,9 @@
 # Create new thread that pulls from central data and checks if can execute open order
 # every x seconds
-
 import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 import heapq
 import traceback
 from prototrade.models.dual_heap import DualHeap
@@ -17,10 +19,9 @@ from threading import Lock
 import datetime
 import numpy as np
 import csv
-
 from prototrade.models.error_event import ErrorEvent
 
-SYMBOL_REQUEST_TIMEOUT = 12
+SYMBOL_REQUEST_TIMEOUT = 22
 
 DATETIME_FORMAT = "%y-%m-%d %H:%M:%S"
 class PositionManager:
@@ -34,7 +35,7 @@ class PositionManager:
         self._save_data_location = save_data_location
         self._file_locks = file_locks
 
-        logging.debug(f"Strategy saving at {self._save_data_location}")
+        logger.debug(f"Strategy saving at {self._save_data_location}")
 
         self._open_orders_polling_thread = None
         self._positions_map = defaultdict(int)
@@ -81,7 +82,7 @@ class PositionManager:
         if symbol not in self._open_orders:
             # Create dual heap if this is the 1st order
             self._open_orders[symbol] = DualHeap()
-            logging.debug(f"Creating heap for {symbol}")
+            logger.debug(f"Creating heap for {symbol}")
 
         dual_heap = self._open_orders[symbol]
         
@@ -139,7 +140,7 @@ class PositionManager:
         heapq.heappush(heap_to_use, order)
         self._order_dict[order_id] = order
         self._order_objects_lock.release()
-        logging.debug(f"Order with order_id {order_id} inserted")
+        logger.debug(f"Order with order_id {order_id} inserted")
 
         return order_id
 
@@ -182,7 +183,7 @@ class PositionManager:
         while symbol not in self._order_books_dict:
             self._order_books_dict_semaphore.release()
             time.sleep(0.2)
-            logging.debug(f"PM Waiting for {symbol} to come in")
+            logger.debug(f"PM Waiting for {symbol} to come in")
             self._order_books_dict_semaphore.acquire()
 
             if time.time() - start_time > SYMBOL_REQUEST_TIMEOUT:
@@ -222,7 +223,7 @@ class PositionManager:
         if not volume_requested or volume_requested >= order.volume:
             self._remove_from_heap(heap_to_use, order) #Remove from heap
             del self._order_dict[order_id] #Remove from order dict
-            logging.debug(f"{order_id} deleted")
+            logger.debug(f"{order_id} deleted")
         else:
             order.volume -= volume_requested
         
@@ -300,13 +301,13 @@ class PositionManager:
             handle_error(self._error_queue, self._exchange_num)
        
     def release_locks(self):
-        logging.debug("Closing files")
+        logger.debug("Closing files")
         if self.pnl_file:
             self.pnl_file.close()
         if self.transactions_file:
             self.transactions_file.close()
 
-        logging.debug("Releasing all PM locks")
+        logger.debug("Releasing all PM locks")
         if self._order_objects_lock.locked():
             self._order_objects_lock.release()
         
@@ -320,7 +321,7 @@ class PositionManager:
             self._transaction_history_lock.release()
 
     def _check_for_executable_orders(self):
-        logging.debug("Starting open order polling thread")
+        logger.debug("Starting open order polling thread")
         last_log_time = time.time()
         while not self._stop_event.is_set():
             self._order_books_dict_semaphore.acquire()
@@ -343,11 +344,10 @@ class PositionManager:
 
             time.sleep(0.3)
   
-        logging.debug("Open order polling thread finished")
+        logger.debug("Open order polling thread finished")
 
     def write_positions_to_csv(self):
         timestamp = datetime.datetime.now().strftime(DATETIME_FORMAT)
-        logging.debug("Writing positions to csv")
         self._file_locks.positions_lock.acquire()
         self._positions_map_lock.acquire()
         positions = deepcopy(self._positions_map)
@@ -393,7 +393,7 @@ class PositionManager:
 
         if symbol_filter:
             for row in self.csv_reader_positions:
-                logging.debug(row)
+                logger.debug(row)
                 if row[1] == symbol_filter: 
                     positions.append(row)
         else:
@@ -433,7 +433,7 @@ class PositionManager:
         executed = None
         while bid_heap and bid_heap[0].price >= live_best_ask_half_quote.price:
             executed = heapq.heappop(bid_heap)
-            logging.debug(f"EXECUTED bid order at price {live_best_ask_half_quote.price}: {executed}")
+            logger.debug(f"EXECUTED bid order at price {live_best_ask_half_quote.price}: {executed}")
 
             self._register_new_transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_ask_half_quote.price, time.time())
             del self._order_dict[executed.order_id]
@@ -445,7 +445,7 @@ class PositionManager:
         executed = None
         while ask_heap and ask_heap[0].price <= live_best_bid_half_quote.price:
             executed = heapq.heappop(ask_heap)
-            logging.debug(f"EXECUTED ask order at price {live_best_bid_half_quote.price}: {executed}")
+            logger.debug(f"EXECUTED ask order at price {live_best_bid_half_quote.price}: {executed}")
             
             self._register_new_transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_bid_half_quote.price, time.time())
             del self._order_dict[executed.order_id]
@@ -523,4 +523,4 @@ class PositionManager:
 def handle_error(error_queue, exchange_num):
     exception_info = traceback.format_exc() # Get a string with full original stack trace
     error_queue.put(ErrorEvent(exchange_num, exception_info))
-    logging.error(f"Process PM {exchange_num} EXCEPTION")
+    logger.error(f"Process PM {exchange_num} EXCEPTION")

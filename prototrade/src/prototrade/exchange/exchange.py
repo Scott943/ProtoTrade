@@ -1,15 +1,17 @@
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 import copy
 from prototrade.models.subscription_event import SubscriptionEvent, SubscribeType
 import time
 from prototrade.exceptions.exceptions import UnavailableSymbolException, SubscriptionException
-import logging
 from prototrade.position_management.position_manager import PositionManager
 from copy import deepcopy
 from functools import wraps
 
 SYMBOL_REQUEST_TIMEOUT = 8
 
-logging.basicConfig(level=logging.DEBUG)
 class Exchange:
     """
     To interact with the framework, the user calls functions in the Exchange object.
@@ -84,7 +86,7 @@ class Exchange:
         while symbol not in self._order_books_dict:
             self._order_books_dict_semaphore.release()
             time.sleep(0.2)
-            logging.debug(f"{self.exchange_num} Waiting for {symbol} to come in")
+            logger.debug(f"{self.exchange_num} Waiting for {symbol} to come in")
             self._order_books_dict_semaphore.acquire()
 
             if time.time() - start_time > SYMBOL_REQUEST_TIMEOUT:
