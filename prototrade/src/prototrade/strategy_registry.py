@@ -98,7 +98,7 @@ class StrategyRegistry:
         logger.debug("Creating strategy processes")
 
         self.create_file_locks()
-        self._file_manager = self._custom_obj_manager.FileManager(self.save_data_location, self.num_strategies, self._file_locks)
+        self._file_manager = FileManager(self.save_data_location, self.num_strategies, self._file_locks)
         
         self._graphing_process = Process(target = create_grapher, args=(self._error_queue, self._stop_event, self._file_manager, self._file_locks, self.num_strategies,))
         self._graphing_process.start()
@@ -128,8 +128,8 @@ class StrategyRegistry:
         # Prevents any other task from being submitted
 
         # close file manager before closing processes
-        if self._file_manager:
-            self._file_manager.stop()
+        # if self._file_manager:
+        #     self._file_manager.stop()
 
         if self._strategy_process_pool:  # Only close pool if it was opened
             logger.debug("Joining strategy processes")
@@ -282,6 +282,7 @@ def _run_strategy(error_queue, func, exchange, *args):
         # At this point the process has finished and can be joined with the main process
 
 def create_grapher(error_queue, *args):
+    g = None
     try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
         g = _Grapher(*args)
         g.run_dash_app()
@@ -292,7 +293,8 @@ def create_grapher(error_queue, *args):
             logger.critical(
                 f"During handling of a graphing error, another error occured: {e2}")
         finally:
-            g._stop() # stop dash app
+            if g:
+                g.stop() # stop grapher cleanly (e.g. remove locks)
 
 def _handle_error(error_queue, exchange_num):
     logger.error(f"Process {exchange_num} EXCEPTION")
@@ -311,4 +313,10 @@ class _HistoricalAPIProxy(NamespaceProxy):
     # We need to expose the same __dunder__ methods as NamespaceProxy,
     # in addition to the b method.
     _exposed_ = ('__getattribute__', '__setattr__', '__delattr__', 'api')
+
+
+class _FileManagerProxy(NamespaceProxy):
+    # We need to expose the same __dunder__ methods as NamespaceProxy,
+    # in addition to the b method.
+    _exposed_ = ('__getattribute__', '__setattr__', '__delattr__', 'pnl_file_pointers', 'pos_file_pointers')
 

@@ -355,6 +355,7 @@ class PositionManager:
         for k, v in positions.items():
             self.csv_writer_positions.writerow([timestamp, k, v])
 
+        self.positions_file.flush() # flush data to file
         self._file_locks.positions_lock.release()
 
     def _get_timestamp(self):
@@ -365,6 +366,7 @@ class PositionManager:
         self._file_locks.pnl_lock.acquire()
         pnl = round(self.get_pnl(), 3)
         self.csv_writer_pnl.writerow([timestamp, pnl])
+        self.pnl_file.flush() # flush data to file
         self._file_locks.pnl_lock.release()
 
     def get_pnl_over_time(self):
