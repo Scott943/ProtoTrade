@@ -1,6 +1,8 @@
 # ProtoTrade
 
-A parallelised Python library for the rapid prototyping of autotrading strategies. Where other libraries typically backtest over historical data, this libary seamlessly hooks into live market data, and simulates the execution of user-defined strategies. The library supports the parallel execution of multiple strategies, allowing the user to easily compare their performance over the same market data:
+A parallelised Python library for the rapid prototyping of autotrading strategies. Where other libraries typically backtest over historical data, this libary seamlessly hooks into live market data, and simulates the execution of user-defined strategies. The library supports the parallel execution of multiple strategies, allowing the user to easily compare their performance over the same market data.
+
+The framework additionally contains a responsive frontend, allowing the visualisation of each strategy's performance:
 
 
 <img src="https://user-images.githubusercontent.com/8079722/218773459-85885323-8d66-45cc-9a91-f1f6694aaa85.jpg" width="400">
