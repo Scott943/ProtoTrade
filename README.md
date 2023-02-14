@@ -25,7 +25,7 @@ def main():
     pt.run_strategies()
 
 def test_strategy(exchange, vol_per_order):
-    """Boilerplate strategy that retrieves the price of Apple stock and places a market order every 3 seconds
+    """Boilerplate strategy that retrieves the price of Apple stock and places a market order every 3 seconds."""
 
     exchange.subscribe("AAPL") # Subscribe to live data from Apple
     while exchange.is_running():
