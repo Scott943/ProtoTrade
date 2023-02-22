@@ -1,23 +1,23 @@
 from prototrade.strategy_registry import StrategyRegistry
+from prototrade.enum import OrderType, OrderSide
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
 
 def main():
-    """Here we register a single strategy that repeatedly places a market order for Apple with a volume of 5.
+    """Strategy that saves a png of the PnL every 3 seconds
     """
     pt = StrategyRegistry("alpaca",
                     "AKFA6O7FWKEQ30SFPB9H",
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
                     "sip",
                     "test_data")
-    pt.register_strategy(test_strategy, 5) # Specify the volume to use here (as a contrived example)
+    pt.register_strategy(test_strategy, vol_per_order=5) # Specify the volume to use here (as a contrived example)
     pt.run_strategies()
 
 
 def test_strategy(exchange, vol_per_order):
-    """Boilerplate strategy that retrieves the price of Apple stock and places a market order every 3 seconds
-
+    """
     :param exchange: The exchange object that the strategy uses to interact with the framework
     :type exchange: :py:class:`Exchange <prototrade.exchange.exchange.Exchange>`
     :param vol_per_order: An example strategy argument where we specify the volume to use for each order
@@ -30,7 +30,7 @@ def test_strategy(exchange, vol_per_order):
         print(f"AAPL BID PRICE: {aapl_price.bid}")
         print(f"AAPL ASK PRICE: {aapl_price.ask}")
         
-        exchange.create_order("AAPL", "bid", "market", vol_per_order) # Example of placing an order 
+        exchange.create_order("AAPL", OrderSide.BID, OrderType.MARKET, vol_per_order) # Example of placing an order 
 
         pnl_over_time = exchange.get_pnl_over_time() # returns a list of lists.  
         # get_pnl_over_time() is a costly function so don't call this every loop in practice.
@@ -40,7 +40,7 @@ def test_strategy(exchange, vol_per_order):
         print("-----")
         time.sleep(3)
         
-    print("Strategy 0 FINISHED")
+    print(f"Strategy {exchange.exchange_num} FINISHED")
 
 def plot_pnl(pnl_over_time):
     if pnl_over_time:

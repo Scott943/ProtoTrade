@@ -25,13 +25,13 @@ class Order:
 
    @property
    def order_side(self):
-      """Side of the order book. Either 'bid' or 'ask'
+      """Side of the order book. Either OrderSide.BID or OrderSide.ASK
       """
       return self._order_side
 
    @property
    def order_type(self):
-      """Type of order e.g. 'market', 'limit' or 'fok'
+      """Type of order e.g. OrderType.MARKET, OrderType.LIMIT or OrderType.FOK
       """
       return self._order_type
 
@@ -50,7 +50,7 @@ class Order:
       if self.order_side != other.order_side:
          raise InvalidOrderSideException("Two objects in same heap have different order side types")
       
-      if self.order_side == "bid":
+      if self.order_side == OrderSide.BID:
          return self.price > other.price # max bid at the top of heap
 
       return self.price < other.price # min ask at the top of heap

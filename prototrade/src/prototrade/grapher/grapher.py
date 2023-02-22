@@ -6,10 +6,8 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 import datetime
 from dash import Dash, html, dcc, Input, Output, State
 import plotly.express as px
-from plotly.subplots import make_subplots
 import pandas as pd
 from threading import Thread
-from flask import request
 import os
 import _thread
 
@@ -20,63 +18,12 @@ import csv
 REFRESH_INTERVAL = 1500
 DATETIME_FORMAT = "%y-%m-%d %H:%M:%S"
 DEFAULT_STRATEGY = 0
+PORT = 8050
 
 class _Grapher:
 
    def __init__(self, stop_event, file_manager, file_locks, num_strategies):
       logger.debug("STARTING GRAPHER")
-
-      self.pos_over_time = [[
-      [datetime.datetime(2023, 2, 8, 15, 32, 26), 'AAPL', 21], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 26), 'AAPL', 21], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 26), 'PLTR', 8], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 'AAPL', 26], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 'PLTR', 8], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 'AAPL', 26], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 'PLTR', 11], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 'AAPL', 37], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 'PLTR', 11], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 'AAPL', 37], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 'PLTR', 19]],
-      [[datetime.datetime(2023, 2, 8, 15, 32, 26), 'MSFT', 21], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 26), 'MSFT', 21], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 26), 'AAPL', 8], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 'MSFT', 28], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 'AAPL', 8], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 'MSFT', 28], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 'AAPL', 15], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 'MSFT', 37], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 'AAPL', 15], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 'MSFT', 37], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 'AAPL', 19]]]
-
-      self.pnl_over_time = [[
-      [datetime.datetime(2023, 2, 8, 15, 32, 26), 21, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 27), 21, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 28), 8, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 28, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 8, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 30), 28, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 31), 15, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 37, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), 15, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 33), 37, 0], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 34), 19, 0]],
-
-      [
-      [datetime.datetime(2023, 2, 8, 15, 32, 26), 66, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 27), 55, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 28), 12, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 33, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 29), 33, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 30), 33, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 31), 35, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), -5, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 32), -8, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 33), 1, 1], 
-      [datetime.datetime(2023, 2, 8, 15, 32, 34), 12, 1]]
-
-      ]
 
       self._stop_event = stop_event
       self._file_manager = file_manager
@@ -90,7 +37,7 @@ class _Grapher:
       self.register_callbacks(self.app)
       self.wait_thread = Thread(target=self.wait_for_stop_event)
       self.wait_thread.start()
-      self.app.run_server(debug=False, dev_tools_hot_reload=True, threaded=False, port=8061)
+      self.app.run_server(debug=False, dev_tools_hot_reload=True, threaded=False, port=PORT)
 
    def wait_for_stop_event(self):
       self._stop_event.wait()
@@ -163,12 +110,13 @@ class _Grapher:
                if row[1] in symbol_filter: 
                   positions.append(row)
 
+      lock.release()
+      
       for l in positions:
          l[0] = datetime.datetime.strptime(l[0], DATETIME_FORMAT)
          l[2] = int(l[2])
          l.append(strategy_num) # appends the strategy number that the pnl came from
 
-      lock.release()
       return positions
 
    def set_app_layout(self):

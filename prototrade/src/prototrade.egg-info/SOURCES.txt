@@ -20,6 +20,7 @@ src/prototrade/grapher/__init__.py
 src/prototrade/grapher/grapher.py
 src/prototrade/models/__init__.py
 src/prototrade/models/dual_heap.py
+src/prototrade/models/enums.py
 src/prototrade/models/error_event.py
 src/prototrade/models/order.py
 src/prototrade/models/quotes.py
@@ -33,4 +34,5 @@ src/prototrade/position_management/test_puller.py
 src/prototrade/ticker_streamer/__init__.py
 src/prototrade/ticker_streamer/alpaca_streamer.py
 src/prototrade/ticker_streamer/price_updater.py
+src/prototrade/ticker_streamer/sim_streamer.py
 src/prototrade/ticker_streamer/subscription_manager.py

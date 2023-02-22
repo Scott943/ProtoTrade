@@ -9,6 +9,7 @@ import multiprocessing
 from multiprocessing import Manager, Pool, Process
 from multiprocessing.managers import BaseManager, NamespaceProxy
 from prototrade.ticker_streamer.alpaca_streamer import AlpacaDataStreamer
+from prototrade.ticker_streamer.sim_streamer import SimulatedStreamer
 from prototrade.ticker_streamer.price_updater import PriceUpdater
 from prototrade.models.strategy import Strategy
 from prototrade.exchange.exchange import Exchange
@@ -20,6 +21,7 @@ from pathlib import Path
 from prototrade.file_manager.file_manager import FileManager
 from prototrade.models.strategy_file_locks import _StrategyLocks
 from prototrade.grapher.grapher import _Grapher
+from prototrade.models.enums import MarketDataSource
 
 import traceback
 import signal
@@ -33,7 +35,7 @@ class StrategyRegistry:
     :raises ExchangeNotOpenException: If the exchange is currently closed, this error is raised
     """
     # this should be initialised with alpaca credentials and exchange. then register_strategy sued to calculate the num_strategiegs
-    def __init__(self, streamer_name, streamer_username, streamer_key, exchange_name="iex", save_data_location = None):
+    def __init__(self, streamer_name, streamer_username = None, streamer_key = None, exchange_name="iex", save_data_location = None):
         """Initalise the virtual exchange. This should be done inside a main() function within the user's program.
 
         :param streamer_name: The name of the streamer to use. Recommended: ``'alpaca'``
@@ -53,6 +55,7 @@ class StrategyRegistry:
         self._streamer_username = streamer_username
         self._streamer_key = streamer_key
         self._exchange_name = exchange_name
+
 
         if save_data_location:
             self.save_data_location = Path(save_data_location).resolve()
@@ -77,6 +80,9 @@ class StrategyRegistry:
         self._strategy_list = []
         self._file_locks = []
 
+        self._historical_api = None
+
+    
     def _create_processes_for_strategies(self):
         logger.info(f"Number of strategies: {self.num_strategies}")
 
@@ -101,7 +107,7 @@ class StrategyRegistry:
         self._file_manager = FileManager(self.save_data_location, self.num_strategies, self._file_locks)
         
         self._graphing_process = Process(target = create_grapher, args=(self._error_queue, self._stop_event, self._file_manager, self._file_locks, self.num_strategies,))
-        self._graphing_process.start()
+        
 
         for strategy_num, strategy in enumerate(self._strategy_list):
             save_data_location_for_strategy = self._file_manager.get_strategy_save_location(strategy_num)
@@ -114,6 +120,7 @@ class StrategyRegistry:
                 _run_strategy, args=(self._error_queue, strategy.strategy_func, exchange, *strategy.arguments))
             logger.debug(f"Started strategy {strategy_num}")
 
+        self._graphing_process.start()
         logger.debug("Started strategies")
         self._error_processor._join_thread()
         logger.debug("Error processing thread joined")
@@ -211,19 +218,24 @@ class StrategyRegistry:
         self.price_updater = PriceUpdater(
             self._order_books_dict, self._order_books_dict_semaphore, self.num_strategies, self._stop_event)
 
-        self._streamer = AlpacaDataStreamer(
-            self._streamer_username,
-            self._streamer_key,
-            self.price_updater,
-            self._exchange_name
-        )
+        if not self._streamer_name or self._streamer_name == MarketDataSource.SIMULATED:
+            self._streamer = SimulatedStreamer(self.price_updater)
+        else:
+            self._streamer = AlpacaDataStreamer(
+                self._streamer_username,
+                self._streamer_key,
+                self.price_updater,
+                self._exchange_name
+            )
 
         if not self._streamer.is_market_open():
             raise ExchangeNotOpenException(
                 f"The live exchange is currently closed. Try again during trading hours")
 
         self._start_custom_obj_manager()
-        self._create_shared_api_class()
+
+        if self._streamer_name != MarketDataSource.SIMULATED:
+            self._create_shared_api_class()
 
         self._subscription_queue = self.manager.Queue()
 
@@ -265,7 +277,6 @@ class StrategyRegistry:
         for _ in range(self.num_strategies):
             self._file_locks.append(_StrategyLocks(self.manager.Lock(), self.manager.Lock())) #cannot be created inside FileManager as its a shared object
 
-
 # This has to be outside the class, as otherwise all class members would have to be pickled when sending arguments to the new process
 def _run_strategy(error_queue, func, exchange, *args):
     try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
@@ -287,7 +298,8 @@ def create_grapher(error_queue, *args):
         g = _Grapher(*args)
         g.run_dash_app()
     except Exception:
-        try:       
+        try:
+            logger.error(f"G ERROR: {traceback.format_exc()}")
             _handle_error(error_queue, -1)
         except Exception as e2:
             logger.critical(

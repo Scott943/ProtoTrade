@@ -1,3 +1,5 @@
 alpaca_trade_api
+dash
 matplotlib
 numpy
+plotly

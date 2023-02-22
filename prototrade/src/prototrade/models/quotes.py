@@ -1,16 +1,24 @@
+from prototrade.models.enums import OrderSide
+
 class HalfQuote:
    """A class that represents one half of a :py:class:`Quote<prototrade.models.quotes.Quote>` object.
    """
    def __init__(self, volume, price, order_side):
       self._volume = volume
       self._price = price
-      self._order_side = order_side.lower()
+      self._order_side = order_side
    
    @property
    def volume(self):
       """Volume at the corresponding price in the order book
       """
       return self._volume
+
+   @volume.setter
+   def volume(self, vol):
+      """Volume at the corresponding price in the order book
+      """
+      self._volume = vol
    
    @property
    def price(self):
@@ -18,11 +26,20 @@ class HalfQuote:
       """
       return self._price
 
+   @price.setter
+   def price(self, price):
+      self._price = price
+      
+
    @property
    def order_side(self):
       """The side of the order book
       """
       return self._order_side
+
+   @order_side.setter
+   def order_side(self, order_side):
+      self.order_side = order_side
 
    def __str__(self):
       return f"{self.order_side} \n volume: {self._volume} \n price: {self._price}"
@@ -33,8 +50,8 @@ class Quote:
    and one for the ask side) as well as the timestamp.
    """
    def __init__(self, bid_volume, bid_price, ask_volume, ask_price, timestamp):
-      self._bid = HalfQuote(bid_volume, bid_price, "bid")
-      self._ask = HalfQuote(ask_volume, ask_price, "ask")
+      self._bid = HalfQuote(bid_volume, bid_price, OrderSide.BID)
+      self._ask = HalfQuote(ask_volume, ask_price, OrderSide.ASK)
       self._timestamp = timestamp
 
    @property

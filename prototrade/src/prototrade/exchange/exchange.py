@@ -10,6 +10,7 @@ from prototrade.position_management.position_manager import PositionManager
 from copy import deepcopy
 from functools import wraps
 
+
 SYMBOL_REQUEST_TIMEOUT = 8
 
 class Exchange:
@@ -155,14 +156,14 @@ class Exchange:
 
     @_position_manager_decorator
     def create_order(self, symbol, order_side, order_type, volume, price = None):
-        """Submit an order to the framework. When a *'market'* or *'limit'* order is submitted, the framework will repeatedly check whether it can be executed.
-        When a *'fok'* (Fill-Or-Kill) order is submitted, the framework will check whether it can be executed once. If it cannot be executed at the specified price, the order will be cancelled.
+        """Submit an order to the framework. When a *OrderType.MARKET* or *OrderType.LIMIT* order is submitted, the framework will repeatedly check whether it can be executed.
+        When a *OrderType.FOK* (Fill-Or-Kill) order is submitted, the framework will check whether it can be executed once. If it cannot be executed at the specified price, the order will be cancelled.
 
         :param symbol: The symbol to place the order for
         :type symbol: *str*
-        :param order_side: The side of the order book to place the order in. Either *'bid'* or *'ask'*.
+        :param order_side: The side of the order book to place the order in. Either *OrderSide.BID* or *OrderSide.ASK*.
         :type order_side: *str*
-        :param order_type: The type of order to submit. One of *'market'*, *'limit'*, *'fok'*. If *'limit'* or *'fok'* specified, then the price parameter must also be specified
+        :param order_type: The type of order to submit. One of *OrderType.MARKET*, *OrderType.LIMIT*, *OrderType.FOK*. If *OrderType.LIMIT* or *OrderType.FOK* specified, then the price parameter must also be specified
         :type order_type: *str*
         :param volume: The volume of the order. Must be > 0
         :type volume: *int*

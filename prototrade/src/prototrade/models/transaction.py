@@ -19,13 +19,13 @@ class Transaction:
 
    @property
    def order_side(self):
-      """Side of the order book. Either 'bid' or 'ask'
+      """Side of the order book. Either OrderSide.BID or OrderSide.ASK
       """
       return self._order_side
 
    @property
    def order_type(self):
-      """Type of order e.g. 'market', 'limit' or 'fok'
+      """Type of order e.g. OrderType.MARKET, OrderType.LIMIT or OrderType.FOK
       """
       return self._order_type
 

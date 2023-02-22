@@ -1,4 +1,5 @@
 from prototrade.strategy_registry import StrategyRegistry
+from prototrade.enum import OrderType, OrderSide
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -30,14 +31,14 @@ def test_strategy(exchange, vol_per_order):
         print(f"AAPL BID PRICE: {aapl_price.bid}")
         print(f"AAPL ASK PRICE: {aapl_price.ask}")
         
-        exchange.create_order("AAPL", "bid", "market", vol_per_order) # Example of placing an order 
+        exchange.create_order("AAPL", OrderSide.BID, OrderType.MARKET, vol_per_order) # Example of placing an order 
 
         plot_aapl(exchange) # pass in the exchange to the user defined plotting function
 
         print("-----")
         time.sleep(3)
         
-    print("Strategy 0 FINISHED")
+    print(f"Strategy {exchange.exchange_num} FINISHED")
 
 def plot_aapl(exchange):
     aapl_price_bars = exchange.historical.get_bars("AAPL", "1minute", "2021-01-13", "2021-01-13").df

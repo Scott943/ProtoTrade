@@ -20,8 +20,10 @@ import datetime
 import numpy as np
 import csv
 from prototrade.models.error_event import ErrorEvent
+from prototrade.models.enums import OrderType, OrderSide
 
-SYMBOL_REQUEST_TIMEOUT = 22
+SYMBOL_REQUEST_TIMEOUT = 12
+PNL_LOG_INTERVAL = 3
 
 DATETIME_FORMAT = "%y-%m-%d %H:%M:%S"
 class PositionManager:
@@ -46,7 +48,6 @@ class PositionManager:
         self._transaction_pnl = 0
 
         self._open_orders_polling_thread = None
-
 
         self.initialise_locks()
         self.initialise_file_pointers()
@@ -100,35 +101,35 @@ class PositionManager:
         if price and price < 0:
             raise InvalidPriceException("Order price must be zero or greater")
 
-        if order_side == "bid":
+        if order_side == OrderSide.BID:
             heap_to_use = dual_heap.bid_heap
-        elif order_side == "ask":
+        elif order_side == OrderSide.ASK:
             heap_to_use = dual_heap.ask_heap
         else:
             self.release_locks()
-            raise InvalidOrderSideException(f"'{order_side}' is an invalid order side. Valid order sides: 'bid', 'ask'")
+            raise InvalidOrderSideException(f"'{order_side}' is an invalid order side. Valid order sides: OrderSide.BID, OrderSide.ASK")
 
-        if order_type in ["fok", "limit"] and not price:
+        if order_type in [OrderType.LIMIT, OrderType.FOK] and not price:
             self.release_locks()
             raise MissingParameterException(f"Must include price as a parameter when inserting a {order_type} order in create_order")
 
-        elif order_type == "market" and price:
+        elif order_type == OrderType.MARKET and price:
             self.release_locks()
             raise ExtraneousParameterException("Price cannot be used as parameter when a market order type is specified in create_order")
             
         if symbol not in self._subscribed_symbols: # needs live data for symbol as otherwise cannot simulate execution 
             raise UnavailableSymbolException(f"Subscribe to symbol '{symbol}' before creating an order for '{symbol}'")
 
-        if order_type == "fok":
+        if order_type == OrderType.FOK:
             self.release_locks() # fok doesn't use heap so can release lock
             return self._handle_fok(symbol, order_side, volume, price)
-        elif order_type == "limit":
+        elif order_type == OrderType.LIMIT:
             return self._handle_limit_order(heap_to_use, symbol, order_side, order_type, volume, price)
-        elif order_type == "market":
+        elif order_type == OrderType.MARKET:
             return self._handle_market_order(heap_to_use, symbol, order_side, order_type, volume)
         else:
             self.release_locks()
-            raise InvalidOrderTypeException(f"'{order_type}' is an invalid order type. Valid order types: 'market', 'limit', 'fok'")
+            raise InvalidOrderTypeException(f"'{order_type}' is an invalid order type. Valid order types: OrderType.MARKET, OrderType.LIMIT, OrderType.FOK")
 
         # Need to add the order to dual heap, then add a entry in the _order_dict to that new object
         # As the key for the entry, create a new order_id
@@ -152,22 +153,23 @@ class PositionManager:
 
         quote_for_symbol = deepcopy(self._order_books_dict[symbol]) # get a copy of the current prices
         self._order_books_dict_semaphore.release()
-        if order_side == "bid":
+        if order_side == OrderSide.BID:
             best_ask_half_quote = quote_for_symbol.ask #match strategy bid against real ask
             if price >= best_ask_half_quote.price:
-                return self._register_new_transaction(symbol, order_side, "fok", volume, best_ask_half_quote.price, time.time())
+                return self._register_new_transaction(symbol, order_side, OrderType.FOK, volume, best_ask_half_quote.price, time.time())
         else:
             best_bid_half_quote = quote_for_symbol.bid #match strategy bid against real ask
             if price <= best_bid_half_quote.price:
-                return self._register_new_transaction(symbol, order_side, "fok", volume, best_bid_half_quote.price, time.time())
+                return self._register_new_transaction(symbol, order_side, OrderType.FOK, volume, best_bid_half_quote.price, time.time())
         
+        self.write_positions_to_csv()
         return None # None if FOK order was killed
 
     def _handle_limit_order(self, heap_to_use, symbol, order_side, order_type, volume, price):
         return self._insert_order(heap_to_use, symbol, order_side, order_type, volume, price)
 
     def _handle_market_order(self, heap_to_use, symbol, order_side, order_type, volume):
-        if order_side == "bid":
+        if order_side == OrderSide.BID:
             return self._insert_order(heap_to_use, symbol, order_side, order_type, volume, math.inf)
         else:
             return self._insert_order(heap_to_use, symbol, order_side, order_type, volume, 0)
@@ -215,7 +217,7 @@ class PositionManager:
         order = self._order_dict[order_id]
         dual_heap = self._open_orders[order.symbol]
 
-        if order.order_side == "bid":
+        if order.order_side == OrderSide.BID:
             heap_to_use = dual_heap.bid_heap
         else:
             heap_to_use = dual_heap.ask_heap
@@ -338,7 +340,7 @@ class PositionManager:
                 self.execute_any_ask_orders(symbol, dual_heap.ask_heap, symbol_quote.bid)
             self._order_objects_lock.release()
 
-            if time.time() - last_log_time > 1:
+            if time.time() - last_log_time > PNL_LOG_INTERVAL:
                 self.write_pnl_to_csv()
                 last_log_time = time.time()
 
@@ -348,10 +350,12 @@ class PositionManager:
 
     def write_positions_to_csv(self):
         timestamp = datetime.datetime.now().strftime(DATETIME_FORMAT)
-        self._file_locks.positions_lock.acquire()
+        
         self._positions_map_lock.acquire()
         positions = deepcopy(self._positions_map)
         self._positions_map_lock.release()
+
+        self._file_locks.positions_lock.acquire()
         for k, v in positions.items():
             self.csv_writer_positions.writerow([timestamp, k, v])
 
@@ -414,7 +418,7 @@ class PositionManager:
         self.csv_writer_transactions.writerow([t.symbol, t.order_side, t.order_type, t.volume, t.price, t.timestamp])
         self._transaction_history_lock.release()
         self._positions_map_lock.acquire()
-        if order_side == "bid":
+        if order_side == OrderSide.BID:
             self._positions_map[symbol] += volume
         else:
             self._positions_map[symbol] -= volume
@@ -423,7 +427,7 @@ class PositionManager:
         transaction_amount = t.price * t.volume
 
         self._transaction_pnl_lock.acquire()
-        if t.order_side == "bid":
+        if t.order_side == OrderSide.BID:
             self._transaction_pnl -= transaction_amount # bid side so lost money and gained assets
         else:
             self._transaction_pnl += transaction_amount # ask side so gained money and lost assets
@@ -435,7 +439,7 @@ class PositionManager:
         executed = None
         while bid_heap and bid_heap[0].price >= live_best_ask_half_quote.price:
             executed = heapq.heappop(bid_heap)
-            logger.debug(f"EXECUTED bid order at price {live_best_ask_half_quote.price}: {executed}")
+            logger.debug(f"Strategy {self._exchange_num} executed bid order at price {live_best_ask_half_quote.price}: {executed}")
 
             self._register_new_transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_ask_half_quote.price, time.time())
             del self._order_dict[executed.order_id]
@@ -447,7 +451,7 @@ class PositionManager:
         executed = None
         while ask_heap and ask_heap[0].price <= live_best_bid_half_quote.price:
             executed = heapq.heappop(ask_heap)
-            logger.debug(f"EXECUTED ask order at price {live_best_bid_half_quote.price}: {executed}")
+            logger.debug(f"Strategy {self._exchange_num} executed ask order at price {live_best_bid_half_quote.price}: {executed}")
             
             self._register_new_transaction(symbol, executed.order_side, executed.order_type, executed.volume, live_best_bid_half_quote.price, time.time())
             del self._order_dict[executed.order_id]

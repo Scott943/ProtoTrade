@@ -1,4 +1,5 @@
 from prototrade.strategy_registry import StrategyRegistry
+from prototrade.enum import OrderType, OrderSide
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,7 +7,7 @@ import random
 import matplotlib
 
 def main():
-    """Here we register a single strategy that repeatedly places a market order for Apple with a volume of 5.
+    """Register a strategy that saves a .png of the positions held by the strategy
     """
     print("Starting")
     pt = StrategyRegistry("alpaca",
@@ -19,12 +20,10 @@ def main():
 
 
 def test_strategy(exchange):
-    """Boilerplate strategy that retrieves the price of Apple stock and places a market order every 3 seconds
+    """Register a strategy that saves a .png of the positions held by the strategy
 
     :param exchange: The exchange object that the strategy uses to interact with the framework
     :type exchange: :py:class:`Exchange <prototrade.exchange.exchange.Exchange>`
-    :param vol_per_order: An example strategy argument where we specify the volume to use for each order
-    :type vol_per_order: int
     """
     exchange.subscribe("AAPL") # Subscribe to live data from Apple
     while exchange.is_running():
@@ -33,7 +32,7 @@ def test_strategy(exchange):
         print(f"AAPL BID PRICE: {aapl_price.bid}")
         print(f"AAPL ASK PRICE: {aapl_price.ask}")
         
-        exchange.create_order("AAPL", "bid", "market", random.randrange(1,24)) # Example of placing an order 
+        exchange.create_order("AAPL", OrderSide.BID, OrderType.MARKET, random.randrange(1,24)) # Example of placing an order 
 
         pos_over_time = exchange.get_positions_over_time("AAPL") # returns a list of lists.  
         # get_pnl_over_time() is a costly function so don't call this every loop in practice.
@@ -43,7 +42,7 @@ def test_strategy(exchange):
         print("--TEST--")
         time.sleep(3)
         
-    print("Strategy 0 FINISHED")
+    print(f"Strategy {exchange.exchange_num} FINISHED")
 
 def plot_positions(pos_over_time):
     print(pos_over_time)
