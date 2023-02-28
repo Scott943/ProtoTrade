@@ -1,4 +1,5 @@
 from prototrade.exceptions.exceptions import InvalidOrderSideException
+from prototrade.models.enums import OrderSide
 
 class Order:
    """A class that represents an order that has not been fufilled yet (i.e. an open order).
@@ -25,13 +26,13 @@ class Order:
 
    @property
    def order_side(self):
-      """Side of the order book. Either OrderSide.BID or OrderSide.ASK
+      """Side of the order book. Either ``OrderSide.BID`` or ``OrderSide.ASK``
       """
       return self._order_side
 
    @property
    def order_type(self):
-      """Type of order e.g. OrderType.MARKET, OrderType.LIMIT or OrderType.FOK
+      """Type of order e.g. ``OrderType.MARKET``, ``OrderType.LIMIT`` or ``OrderType.FOK``
       """
       return self._order_type
 

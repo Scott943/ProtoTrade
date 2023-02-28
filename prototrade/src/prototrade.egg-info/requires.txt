@@ -1,5 +1,5 @@
-alpaca_trade_api
-dash
-matplotlib
-numpy
-plotly
+alpaca_trade_api==2.3
+dash<3.0,>=2.5.1
+matplotlib>=3.6.1
+numpy>=1.23.0
+plotly<6.0,>=5.9.0

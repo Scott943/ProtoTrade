@@ -1,6 +1,8 @@
 investigation
+Presentation
 /prototrade/src/venv/
 build
 dist
 venv
 testing/test_data/*
+*/Run_*

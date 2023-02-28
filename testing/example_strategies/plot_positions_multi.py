@@ -1,5 +1,5 @@
 from prototrade.strategy_registry import StrategyRegistry
-from prototrade.enum import OrderType, OrderSide
+from prototrade.models.enums import OrderType, OrderSide, MarketDataSource
 
 import time
 import pandas as pd
@@ -11,7 +11,7 @@ def main():
     """We register a strategy that saves a .png of positions
     """
     print("Starting")
-    pt = StrategyRegistry("alpaca",
+    pt = StrategyRegistry(MarketDataSource.ALPACA,
                     "AKFA6O7FWKEQ30SFPB9H",
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
                     "sip",

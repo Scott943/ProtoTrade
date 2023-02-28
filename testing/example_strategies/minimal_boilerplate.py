@@ -3,7 +3,7 @@ from prototrade.models.enums import OrderType, OrderSide, MarketDataSource
 import time
 
 def main():
-    """Here we register a single strategy that repeatedly places a market order for Apple with a volume of 5.
+    """Here we register a single strategy that repeatedly places a market order for Apple with a volume of 5 on the SIMULATED exchange
     """
     pt = StrategyRegistry(MarketDataSource.SIMULATED)
     pt.register_strategy(test_strategy, 5) # Specify the volume to use here (as a contrived example)

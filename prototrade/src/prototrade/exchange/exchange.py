@@ -53,7 +53,8 @@ class Exchange:
         """A REST API proxy that allows access to historical API functions (depends on the market data source being used). 
         If using alpaca, all functions in the `REST <https://github.com/alpacahq/alpaca-trade-api-python/blob/master/alpaca_trade_api/rest.py>`_ module are available.
         Example usage within a user strategy: ``exchange.historical.get_bars("PLTR", "1minute", "2022-01-18", "2022-01-18").df``. This retrieves changes in the price
-        of PLTR stock over the given date with a 1 minute granularity.
+        of PLTR stock over the given date with a 1 minute granularity. N.B. When the data source is set to ``MarketDataSource.SIMULATED``, the historical property 
+        is not available.
 
         :return: REST API Proxy (market data source dependent)
         """
@@ -156,15 +157,15 @@ class Exchange:
 
     @_position_manager_decorator
     def create_order(self, symbol, order_side, order_type, volume, price = None):
-        """Submit an order to the framework. When a *OrderType.MARKET* or *OrderType.LIMIT* order is submitted, the framework will repeatedly check whether it can be executed.
-        When a *OrderType.FOK* (Fill-Or-Kill) order is submitted, the framework will check whether it can be executed once. If it cannot be executed at the specified price, the order will be cancelled.
+        """Submit an order to the framework. When a ``OrderType.MARKET`` or ``OrderType.LIMIT`` order is submitted, the framework will repeatedly check whether it can be executed.
+        When a ``OrderType.FOK`` (Fill-Or-Kill) order is submitted, the framework will check whether it can be executed once. If it cannot be executed at the specified price, the order will be cancelled.
 
         :param symbol: The symbol to place the order for
         :type symbol: *str*
-        :param order_side: The side of the order book to place the order in. Either *OrderSide.BID* or *OrderSide.ASK*.
-        :type order_side: *str*
-        :param order_type: The type of order to submit. One of *OrderType.MARKET*, *OrderType.LIMIT*, *OrderType.FOK*. If *OrderType.LIMIT* or *OrderType.FOK* specified, then the price parameter must also be specified
-        :type order_type: *str*
+        :param order_side: The side of the order book to place the order in. Either ``OrderSide.BID`` or ``OrderSide.ASK``.
+        :type order_side: :py:class:`MarketDataSource <prototrade.models.enums.OrderSide>`
+        :param order_type: The type of order to submit. One of ``OrderType.MARKET``, ``OrderType.LIMIT``, ``OrderType.FOK``. If ``OrderType.LIMIT`` or ``OrderType.FOK`` specified, then the price parameter must also be specified
+        :type order_type: :py:class:`MarketDataSource <prototrade.models.enums.OrderType>`
         :param volume: The volume of the order. Must be > 0
         :type volume: *int*
         :param price: The limit price / Fill-Or-Kill price, defaults to *None*

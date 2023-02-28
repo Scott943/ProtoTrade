@@ -38,13 +38,13 @@ class StrategyRegistry:
     def __init__(self, streamer_name, streamer_username = None, streamer_key = None, exchange_name="iex", save_data_location = None):
         """Initalise the virtual exchange. This should be done inside a main() function within the user's program.
 
-        :param streamer_name: The name of the streamer to use. Recommended: ``'alpaca'``
-        :type streamer_name: str
+        :param streamer_name: The name of the streamer to use. Recommended: ``MarketDataSource.ALPACA``
+        :type streamer_name: :py:class:`MarketDataSource <prototrade.models.enums.MarketDataSource>`
         :param streamer_username: The API usesrname
         :type streamer_username: str
-        :param streamer_key: The corresponding API key
+        :param streamer_key: The corresponding API key. (Not required for MarketDataSource.SIMULATED)
         :type streamer_key: str
-        :param exchange_name: The exchange to use. For alpaca, this can be ``sip`` (all US exchanges - paid subscription only) or ``iex``, defaults to "iex"
+        :param exchange_name: The exchange to use. For alpaca, this can be ``sip`` (all US exchanges - paid subscription only) or ``iex``, defaults to "iex". (Not required for MarketDataSource.SIMULATED)
         :type exchange_name: str, optional
         :param save_data_location: The relative file location (from the user strategy script) to save data about each run, defaults to None
         :type save_data_location: str, optional
@@ -103,10 +103,10 @@ class StrategyRegistry:
 
         logger.debug("Creating strategy processes")
 
-        self.create_file_locks()
+        self._create_file_locks()
         self._file_manager = FileManager(self.save_data_location, self.num_strategies, self._file_locks)
         
-        self._graphing_process = Process(target = create_grapher, args=(self._error_queue, self._stop_event, self._file_manager, self._file_locks, self.num_strategies,))
+        self._graphing_process = Process(target = _create_grapher, args=(self._error_queue, self._stop_event, self._file_manager, self._file_locks, self.num_strategies,))
         
 
         for strategy_num, strategy in enumerate(self._strategy_list):
@@ -273,7 +273,7 @@ class StrategyRegistry:
         # Get the api object within the class wrapper
         self._historical_api = rest_api.api
 
-    def create_file_locks(self):
+    def _create_file_locks(self):
         for _ in range(self.num_strategies):
             self._file_locks.append(_StrategyLocks(self.manager.Lock(), self.manager.Lock())) #cannot be created inside FileManager as its a shared object
 
@@ -292,7 +292,7 @@ def _run_strategy(error_queue, func, exchange, *args):
             exchange._stop() # stop and cleanup main thread in exchange
         # At this point the process has finished and can be joined with the main process
 
-def create_grapher(error_queue, *args):
+def _create_grapher(error_queue, *args):
     g = None
     try:  # Wrap the user strategy in a try/catch block so we can catch any errors and forward them to the main process
         g = _Grapher(*args)

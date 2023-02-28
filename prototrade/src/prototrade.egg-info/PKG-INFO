@@ -1,7 +1,7 @@
 Metadata-Version: 1.2
 Name: prototrade
-Version: 0.0.18
-Summary: UNKNOWN
+Version: 0.0.20
+Summary: Parallelised Python framework for rapid prototyping of autotrading strategies
 Home-page: UNKNOWN
 Author: Scott Parker
 License: MIT

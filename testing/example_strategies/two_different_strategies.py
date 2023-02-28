@@ -1,13 +1,13 @@
 from prototrade.strategy_registry import StrategyRegistry
-from prototrade.enum import OrderType, OrderSide
+from prototrade.models.enums import OrderType, OrderSide, MarketDataSource
 import time
 import random
 
 def main():
     """
-    We register two different strategies here.
+    We register two different strategies here. Alpaca is used as a data source.
     """
-    pt = StrategyRegistry("alpaca",
+    pt = StrategyRegistry(MarketDataSource.ALPACA,
                     "AKFA6O7FWKEQ30SFPB9H",
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
                     "sip")

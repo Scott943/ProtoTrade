@@ -1,5 +1,5 @@
 from prototrade.strategy_registry import StrategyRegistry
-from prototrade.enum import OrderType, OrderSide
+from prototrade.models.enums import OrderType, OrderSide, MarketDataSource
 import time
 import random
 
@@ -8,7 +8,7 @@ def main():
     We register two strategies here (both executing the same function but with different function parameters). 
     One strategy repeatedly places orders of low volume, whilst the other places orders with a higher volume.
     """
-    pt = StrategyRegistry("alpaca",
+    pt = StrategyRegistry(MarketDataSource.ALPACA,
                     "AKFA6O7FWKEQ30SFPB9H",
                     "z6Cb3RW4lyp3ykub09tUHjdGF7aNYsGuqXh7WWJs",
                     "sip")
